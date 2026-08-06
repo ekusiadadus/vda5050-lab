@@ -137,7 +137,7 @@ pub fn validate_local_path(
 /// Returns an error if the final component is a symlink, is not a regular file,
 /// or cannot be opened.
 pub fn open_path_no_follow(path: &Path) -> Result<VerifiedLocalFile, LocalPathError> {
-    use cap_fs_ext::{OpenOptionsFollowExt, OpenOptionsSyncExt};
+    use cap_fs_ext::{OpenOptionsFollowExt, OpenOptionsMaybeDirExt, OpenOptionsSyncExt};
     use cap_primitives::{
         ambient_authority,
         fs::{FollowSymlinks, OpenOptions, open, open_ambient_dir},
@@ -150,7 +150,11 @@ pub fn open_path_no_follow(path: &Path) -> Result<VerifiedLocalFile, LocalPathEr
     let directory = open_ambient_dir(parent, ambient_authority())
         .map_err(|source| local_io_error(parent, source))?;
     let mut options = OpenOptions::new();
-    options.read(true).follow(FollowSymlinks::No).nonblock(true);
+    options
+        .read(true)
+        .follow(FollowSymlinks::No)
+        .nonblock(true)
+        .maybe_dir(true);
     let file = open(&directory, Path::new(file_name), &options)
         .map_err(|source| component_io_error(&directory, Path::new(file_name), path, source))?;
     verified_regular_file(file, path.to_path_buf())
@@ -208,7 +212,7 @@ fn open_below_directory(
     base_path: &Path,
     reference: &Path,
 ) -> Result<VerifiedLocalFile, LocalPathError> {
-    use cap_fs_ext::{OpenOptionsFollowExt, OpenOptionsSyncExt};
+    use cap_fs_ext::{OpenOptionsFollowExt, OpenOptionsMaybeDirExt, OpenOptionsSyncExt};
     use cap_primitives::fs::{FollowSymlinks, OpenOptions, open, open_dir_nofollow};
 
     let display = base_path.join(reference);
@@ -227,7 +231,11 @@ fn open_below_directory(
     for (index, component) in components.iter().enumerate() {
         if index + 1 == components.len() {
             let mut options = OpenOptions::new();
-            options.read(true).follow(FollowSymlinks::No).nonblock(true);
+            options
+                .read(true)
+                .follow(FollowSymlinks::No)
+                .nonblock(true)
+                .maybe_dir(true);
             let file = open(&directory, Path::new(component), &options)
                 .map_err(|source| local_io_error(&display, source))?;
             return verified_regular_file(file, display);
