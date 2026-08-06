@@ -1,0 +1,261 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to validate without publishing
+        required: true
+        default: v0.1.0
+
+permissions: {}
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+
+concurrency:
+  group: release-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Check out annotated tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
+
+      - name: Validate version, tag, notes, and rule digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vda5050-doctor") | .version')"
+          test "$RELEASE_TAG" = "v$version"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            test "$(git cat-file -t "$RELEASE_TAG")" = "tag"
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          fi
+          test -f "docs/releases/$RELEASE_TAG.md"
+          grep -Fq "## [$version]" CHANGELOG.md
+          catalog_digest="$(sha256sum rules/phase1.json | cut -d ' ' -f 1)"
+          test "$catalog_digest" = "$(jq -r '.rule_implementation_digest' bundles/manifests/vda5050-3.0.0.phase1.bundle.json)"
+
+      - name: Run formatting, lint, and tests
+        run: make fmt-check lint test
+
+      - name: Install pinned coverage tool
+        run: cargo install cargo-llvm-cov --version 0.8.7 --locked
+
+      - name: Enforce line and region coverage floors
+        run: cargo llvm-cov --workspace --all-targets --fail-under-lines 80 --fail-under-regions 80
+
+      - name: Install pinned RustSec audit tool
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      - name: Audit locked dependencies
+        run: cargo audit --file Cargo.lock
+
+      - name: Install pinned license and source auditor
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Enforce dependency policy
+        run: cargo deny check
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: vda5050-doctor
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary: vda5050-doctor
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            binary: vda5050-doctor
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            binary: vda5050-doctor.exe
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain and target
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add "${{ matrix.target }}" --toolchain 1.97.1
+
+      - name: Run native platform contract tests
+        shell: bash
+        run: cargo test --workspace --all-targets --locked --target "${{ matrix.target }}"
+
+      - name: Resolve the checked-out source commit
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(git rev-parse 'HEAD^{commit}')"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            test "$source_commit" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          fi
+          echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        shell: bash
+        env:
+          VDA5050_BUILD_COMMIT: ${{ steps.source.outputs.commit }}
+        run: cargo build --release --locked --bin vda5050-doctor --target "${{ matrix.target }}"
+
+      - name: Verify embedded release version
+        if: runner.os != 'Windows'
+        shell: bash
+        run: "target/${{ matrix.target }}/release/${{ matrix.binary }} --version"
+
+      - name: Verify embedded release version on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: "target/${{ matrix.target }}/release/${{ matrix.binary }} --version"
+
+      - name: Package binary and provenance documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="vda5050-doctor-${RELEASE_TAG}-${{ matrix.target }}"
+          mkdir -p "dist/$package/rules" "dist/$package/bundles/manifests" "dist/$package/docs"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/$package/"
+          cp LICENSE README.md CHANGELOG.md "dist/$package/"
+          cp rules/phase1.json "dist/$package/rules/"
+          cp bundles/manifests/vda5050-3.0.0.sources.json "dist/$package/bundles/manifests/"
+          cp bundles/manifests/vda5050-3.0.0.phase1.bundle.json "dist/$package/bundles/manifests/"
+          cp docs/PROTOCOL_SOURCES.md "dist/$package/docs/"
+          tar -C dist -czf "dist/$package.tar.gz" "$package"
+
+      - name: Upload native archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  sbom:
+    name: Generate CycloneDX SBOM
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.97.1 --profile minimal
+
+      - name: Install pinned CycloneDX generator
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+
+      - name: Generate binary-scoped SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          cargo cyclonedx --manifest-path apps/vda5050-doctor/Cargo.toml --format json --describe binaries --target all --spec-version 1.5
+          mkdir -p dist
+          mv apps/vda5050-doctor/vda5050-doctor_bin.cdx.json "dist/vda5050-doctor-${RELEASE_TAG}.cdx.json"
+          jq empty "dist/vda5050-doctor-${RELEASE_TAG}.cdx.json"
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-sbom
+          path: dist/*.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Attest and publish Developer Preview
+    if: github.event_name == 'push'
+    needs:
+      - build
+      - sbom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      attestations: write
+      artifact-metadata: write
+      contents: write
+      id-token: write
+    steps:
+      - name: Check out release notes and tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate and verify checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum ./*.tar.gz ./*.cdx.json > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Create SLSA build-provenance attestation
+        uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
+        with:
+          subject-checksums: dist/SHA256SUMS
+
+      - name: Create CycloneDX SBOM attestation
+        uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
+        with:
+          subject-path: dist/*.tar.gz
+          sbom-path: dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
+
+      - name: Create immutable prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "vda5050-doctor $RELEASE_TAG — Developer Preview" \
+            --notes-file "docs/releases/$RELEASE_TAG.md" \
+            --prerelease

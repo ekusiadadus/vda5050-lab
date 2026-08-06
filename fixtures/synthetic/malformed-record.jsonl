@@ -1,0 +1,2 @@
+{"topic":"uagv/v3/acme/r1/state","timestamp":"2026-08-06T00:02:00Z","payload":{"headerId":8,"timestamp":"2026-08-06T00:02:00Z","manufacturer":"acme","serialNumber":"r1"}}
+{"topic":"uagv/v3/acme/r1/state","payload":

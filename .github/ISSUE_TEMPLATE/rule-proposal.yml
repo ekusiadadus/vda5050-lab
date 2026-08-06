@@ -1,0 +1,48 @@
+name: Diagnostic rule proposal
+description: Propose an evidence-backed VDA 5050 diagnostic.
+title: "[Rule]: "
+labels:
+  - rule-proposal
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Applicable VDA version
+      placeholder: 3.0.0
+    validations:
+      required: true
+  - type: input
+    id: authority
+    attributes:
+      label: Published source and exact section
+    validations:
+      required: true
+  - type: dropdown
+    id: subject
+    attributes:
+      label: Normative subject
+      options:
+        - MOBILE_ROBOT
+        - FLEET_CONTROL
+        - PROJECT_DIAGNOSTIC
+        - UNKNOWN
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: Required observations and capture vantage
+    validations:
+      required: true
+  - type: textarea
+    id: abstention
+    attributes:
+      label: What must force INCONCLUSIVE or UNKNOWN?
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Publication boundary
+      options:
+        - label: Any attached fixture is synthetic or independently authorized for publication.
+          required: true

@@ -1,0 +1,133 @@
+{
+  "manifest_schema_version": 1,
+  "source_set_id": "vda5050-3.0.0-2026-08-06",
+  "protocol": {
+    "name": "VDA 5050",
+    "version": "3.0.0",
+    "release_tag": "3.0.0"
+  },
+  "retrieved_on": "2026-08-06",
+  "authority_resolution": {
+    "base_authority": "published_pdf",
+    "rules": [
+      "A qualifying, separately published VDA erratum may override only its explicitly identified version and clause.",
+      "Released JSON Schemas are used for machine-readable syntax validation but do not override conflicting published-PDF prose.",
+      "The tagged GitHub Markdown is a navigation and review aid; the tag's README states that the published PDF prevails on disagreement.",
+      "GitHub issues, pull requests, answers, labels, and milestones are non-normative unless incorporated into a published release or qualifying formal erratum."
+    ],
+    "recognized_formal_errata": []
+  },
+  "published_pdf": {
+    "publisher": "Verband der Automobilindustrie e.V. (VDA)",
+    "title": "Interface for the Communication between Mobile Robots and a Fleet Control",
+    "url": "https://www.vda.de/dam/jcr%3A09f03b91-13e2-4db3-bf30-4f221710071b/VDA5050_EN.pdf",
+    "sha256": "becf70e4c4a97db4058464d333ef9f7492a32007577dda70fdc433de045dab20",
+    "bytes": 3543547,
+    "pages": 103,
+    "pdf_metadata_creation_time": "2026-04-17T22:21:10+09:00",
+    "distribution": "METADATA_ONLY_NOT_VENDORED",
+    "integrity_note": "The digest identifies the bytes retrieved over HTTPS on the retrieval date; it is not a publisher-signed digest."
+  },
+  "tagged_repository": {
+    "repository": "https://github.com/VDA5050/VDA5050.git",
+    "web_url": "https://github.com/VDA5050/VDA5050/tree/3.0.0",
+    "tag": "3.0.0",
+    "commit": "e9ba560b0e2d3f66526550ad5d61b8a2ad936172",
+    "commit_time": "2026-03-18T20:06:30+01:00",
+    "license": {
+      "path": "LICENSE.txt",
+      "sha256": "e1a34a010d5572888c82ea7e9b7ee134517ef061159fdac8352e9a7c3acdd2dc",
+      "spdx_interpretation": "MIT",
+      "scope_note": "This records the repository license. It does not assert that the separately published PDF has the same redistribution terms."
+    },
+    "readme": {
+      "path": "README.md",
+      "sha256": "e0d42c1a9bbd2df70119730e1f502c5d836fae32f6068a6fa549bbd94bc495ba",
+      "authority_note": "The tagged README states that the published VDA PDF is valid if it differs from the Markdown or JSON Schemas."
+    },
+    "markdown_specification": {
+      "path": "VDA5050_EN.md",
+      "sha256": "e759665ee62953a380961580d6b0d1bf4fd3dfe9d22a60f142af1456aca6ccde",
+      "bytes": 208085,
+      "authority_role": "TAGGED_SOURCE_MIRROR"
+    }
+  },
+  "released_schemas": {
+    "declared_dialect": "https://json-schema.org/draft/2020-12/schema",
+    "remote_reference_resolution": "DENIED_BY_PROJECT_POLICY",
+    "validator_identity": "NOT_YET_SELECTED",
+    "format_assertion_policy": "NOT_YET_FIXED",
+    "execution_status": "PROVENANCE_CAPTURED_NOT_YET_WIRED_TO_DIAGNOSE",
+    "artifacts": [
+      {
+        "name": "connection",
+        "path": "json_schemas/connection.schema",
+        "sha256": "083dffd157e1af2d365e24b73dfc18e404addb3e1e46dd4c7fbab63cd777cafb",
+        "bytes": 2663,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "factsheet",
+        "path": "json_schemas/factsheet.schema",
+        "sha256": "d2fd651dc496c4cab34c35b43a3d1293629c3cce954fae71ef6aebbda67991ec",
+        "bytes": 46059,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "instantActions",
+        "path": "json_schemas/instantActions.schema",
+        "sha256": "230bfcab4617fb9e8b93c1b9c18c99da43b1c80619e3a1ecc8daa926cd792450",
+        "bytes": 5275,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "order",
+        "path": "json_schemas/order.schema",
+        "sha256": "f7e2d3b5c914e76d28d39e3e5a08b6997e56e9c4cbcceb634f13fe3573986d12",
+        "bytes": 18231,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "responses",
+        "path": "json_schemas/responses.schema",
+        "sha256": "da6297b06f278ddca3bfd3c0dec982e3e62d2cf635e0cdb2dea93d090504aad8",
+        "bytes": 2707,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "state",
+        "path": "json_schemas/state.schema",
+        "sha256": "f00d6620e0d1d20efa99f8ce3bd1a25a578f0c01e96cc9b52548259f4847d307",
+        "bytes": 34506,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "visualization",
+        "path": "json_schemas/visualization.schema",
+        "sha256": "858eeab4758a5891e1620a8df333e47f341f61dd8d683a41bb0293217ddafc92",
+        "bytes": 9955,
+        "declared_schema_uri": "https://json-schema.org/draft/2020-12/schema"
+      },
+      {
+        "name": "zoneSet",
+        "path": "json_schemas/zoneSet.schema",
+        "sha256": "d9a2d8a2f0d7300cc6d9158b1708b7f7d08fdefd5415b1991fbeebab08a9b402",
+        "bytes": 14711,
+        "declared_schema_uri": "http://json-schema.org/draft/2020-12/schema",
+        "note": "The tag uses an http URI here while the other seven schemas use https; this manifest records the source bytes without silently rewriting them."
+      }
+    ]
+  },
+  "project_rule_catalog": {
+    "path": "rules/phase1.json",
+    "sha256": "ec9d4e32f15d45c3d19ba536772f012268b51b11ea51c2e7bfbc8fcc46a88f63",
+    "bytes": 12925
+  },
+  "runtime_bundle_manifest": "bundles/manifests/vda5050-3.0.0.phase1.bundle.json",
+  "known_non_claims": [
+    "This manifest is not evidence that the VDA publication is digitally signed.",
+    "This manifest does not grant redistribution rights for the separately published PDF.",
+    "This manifest does not prove that the current CLI has loaded or verified these artifacts.",
+    "This manifest does not treat a GitHub issue or milestone as a formal erratum."
+  ]
+}

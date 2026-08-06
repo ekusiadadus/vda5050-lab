@@ -1,0 +1,2 @@
+{"topic":"uagv/v3/acme/r1/order","timestamp":"2026-08-06T00:00:00Z","payload":{"headerId":1,"timestamp":"2026-08-06T00:00:00Z","manufacturer":"acme","serialNumber":"r1","orderId":"order-001","orderUpdateId":1,"nodes":[{"nodeId":"A","sequenceId":0,"released":true}]}}
+{"topic":"uagv/v3/acme/r1/order","timestamp":"2026-08-06T00:00:01Z","payload":{"headerId":2,"timestamp":"2026-08-06T00:00:01Z","manufacturer":"acme","serialNumber":"r1","orderId":"order-001","orderUpdateId":1,"nodes":[{"nodeId":"B","sequenceId":0,"released":true}]}}

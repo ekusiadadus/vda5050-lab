@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# JavaScript and web tooling
+/web/node_modules/
+/web/dist/
+/web/.next/
+
+# Local traces, reports, and databases
+/captures/
+/reports/
+*.sqlite
+*.sqlite3
+*.db
+*.pcap
+*.pcapng
+
+# Secrets and local environment. TLS integration tests generate an ephemeral CA
+# under the operating-system temporary directory; private test keys are never
+# committed as fixtures.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

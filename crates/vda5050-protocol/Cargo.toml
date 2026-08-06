@@ -1,0 +1,21 @@
+[package]
+name = "vda5050-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+hex.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+sha2.workspace = true
+thiserror.workspace = true
+vda5050-local-fs.workspace = true
+
+[lints]
+workspace = true

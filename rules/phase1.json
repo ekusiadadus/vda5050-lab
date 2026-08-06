@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "catalog_id": "vda5050-lab.phase1.rules",
+  "catalog_version": "1.0.0",
+  "protocol_version": "3.0.0",
+  "source_set_id": "vda5050-3.0.0-2026-08-06",
+  "status": "IMPLEMENTED_WITH_RECORDED_LIMITATIONS",
+  "evaluation_model": {
+    "applicability": [
+      "APPLICABLE",
+      "NOT_APPLICABLE",
+      "UNKNOWN"
+    ],
+    "verdict": [
+      "PASS",
+      "FAIL",
+      "INCONCLUSIVE",
+      "UNEVALUATED"
+    ],
+    "unknown_applicability_requires": "UNEVALUATED",
+    "absence_proof_requires": [
+      "capture closed cleanly",
+      "capture completeness confirmed for the specific rule",
+      "all decisive events share one capture-local monotonic clock epoch",
+      "the required actor attribution is proven",
+      "the rule-specific observation window is complete"
+    ],
+    "unmet_preconditions_result": "INCONCLUSIVE or UNKNOWN/UNEVALUATED; never FAIL"
+  },
+  "authority_policy": {
+    "base_normative_authority": "VDA_PUBLISHED_PDF",
+    "formal_erratum_override": "Only a separately published VDA erratum that identifies the affected version and exact clause may override that clause.",
+    "released_schema_role": "Machine-readable syntax authority. It does not override conflicting prose in the published PDF.",
+    "tagged_source_role": "Convenience mirror and source-navigation aid. The tagged README states that the published PDF prevails on disagreement.",
+    "github_discussions_role": "Issues, pull requests, answers, labels, and milestones are non-normative unless incorporated into a published version or qualifying formal erratum.",
+    "recognized_formal_errata": []
+  },
+  "comparator_contract": {
+    "id": "vda5050-order-semantic",
+    "version": "1",
+    "excluded_json_pointers": [
+      "/headerId",
+      "/timestamp"
+    ],
+    "object_key_order_significant": false,
+    "array_order_significant": true,
+    "omitted_optional_equals_explicit_default": false,
+    "unknown_extension_difference": "SEMANTICALLY_UNKNOWN",
+    "unclassified_free_text_difference": "SEMANTICALLY_UNKNOWN",
+    "normative_content_decision_allowed_on_unknown": false
+  },
+  "rules": [
+    {
+      "rule_id": "LAB-D1-REPEATED-ORDER-APPLICABILITY",
+      "diagnostic_id": "D1",
+      "title": "Repeated order applicability cannot be established",
+      "classification": "PROJECT_DIAGNOSTIC",
+      "authority": {
+        "kind": "PROJECT_SPECIFICATION",
+        "source": "rules/phase1.json",
+        "section": "LAB-D1-REPEATED-ORDER-APPLICABILITY",
+        "obligation": "INFORMATIVE",
+        "normative_subject": "UNKNOWN"
+      },
+      "applicability": {
+        "required_observations": [
+          "two order messages with the same parseable orderId",
+          "a parseable orderUpdateId on both messages"
+        ],
+        "unknown_when": [
+          "either orderUpdateId is missing or cannot be represented by the selected parser contract"
+        ]
+      },
+      "outcome": {
+        "applicability": "UNKNOWN",
+        "verdict": "UNEVALUATED"
+      },
+      "does_not_claim": [
+        "a VDA 5050 violation",
+        "which participant caused the incomplete observation"
+      ],
+      "implementation_status": "IMPLEMENTED"
+    },
+    {
+      "rule_id": "LAB-D1-REPEATED-ORDER-CHANGED",
+      "diagnostic_id": "D1",
+      "title": "Changed semantic content under a repeated order/update identity",
+      "classification": "PROJECT_DIAGNOSTIC",
+      "authority": {
+        "kind": "PROJECT_SPECIFICATION",
+        "source": "rules/phase1.json",
+        "section": "LAB-D1-REPEATED-ORDER-CHANGED",
+        "obligation": "INFORMATIVE",
+        "normative_subject": "UNKNOWN"
+      },
+      "applicability": {
+        "required_observations": [
+          "two order messages with equal orderId and orderUpdateId",
+          "the versioned comparator returns SEMANTICALLY_CHANGED"
+        ]
+      },
+      "decision_contract": {
+        "fleet_control_attribution_requires": "trusted actor mapping proves that fleet control published the repeated order",
+        "without_actor_proof": "INCONCLUSIVE with investigation target UNRESOLVED"
+      },
+      "does_not_claim": [
+        "that section 6.1.4.5 assigns a sender-side obligation to fleet control",
+        "that the mobile robot accepted or rejected either message"
+      ],
+      "implementation_status": "IMPLEMENTED"
+    },
+    {
+      "rule_id": "LAB-D1-REPEATED-ORDER-UNKNOWN",
+      "diagnostic_id": "D1",
+      "title": "Repeated order content is not semantically decidable",
+      "classification": "PROJECT_DIAGNOSTIC",
+      "authority": {
+        "kind": "PROJECT_SPECIFICATION",
+        "source": "rules/phase1.json",
+        "section": "LAB-D1-REPEATED-ORDER-UNKNOWN",
+        "obligation": "INFORMATIVE",
+        "normative_subject": "UNKNOWN"
+      },
+      "applicability": {
+        "required_observations": [
+          "two order messages with equal orderId and orderUpdateId",
+          "the versioned comparator returns SEMANTICALLY_UNKNOWN"
+        ]
+      },
+      "outcome": {
+        "applicability": "APPLICABLE",
+        "verdict": "INCONCLUSIVE"
+      },
+      "does_not_claim": [
+        "that the order contents are equal",
+        "that the order contents differ",
+        "a normative protocol violation"
+      ],
+      "implementation_status": "IMPLEMENTED"
+    },
+    {
+      "rule_id": "VDA300-D1-MOBILE-ROBOT-CHANGED-RESPONSE",
+      "diagnostic_id": "D1",
+      "title": "Mobile-robot response to changed content under the current order/update identity",
+      "classification": "VDA_PROTOCOL_CONFORMANCE",
+      "authority": {
+        "kind": "VDA_PUBLISHED_PDF",
+        "source_set_id": "vda5050-3.0.0-2026-08-06",
+        "section": "6.1.4.5",
+        "obligation": "SHALL",
+        "normative_subject": "MOBILE_ROBOT"
+      },
+      "applicability": {
+        "required_observations": [
+          "the mobile robot's current orderId and current orderUpdateId are established",
+          "a later order has those same identifiers",
+          "the versioned comparator returns SEMANTICALLY_CHANGED",
+          "trusted actor mapping proves the state publisher is the mobile robot"
+        ]
+      },
+      "expected_protocol_response": {
+        "error_type": "SAME_ORDER_UPDATE_ID",
+        "error_level": "WARNING",
+        "additional_requirements_not_yet_evaluated": [
+          "the new order is not taken into the internal buffer",
+          "the previous order remains in the internal buffer",
+          "execution of the previous order continues",
+          "the warning remains until a new order is accepted"
+        ]
+      },
+      "does_not_claim": [
+        "that JSON byte equality defines same content",
+        "that observing one state proves internal-buffer behavior or continued physical execution"
+      ],
+      "implementation_status": "IMPLEMENTED_GUARDED",
+      "implementation_guard": "The engine requires a trusted mobile-robot state between the first and repeated order messages that identifies the same participant, orderId, and orderUpdateId. Without it, applicability is UNKNOWN and the verdict is UNEVALUATED."
+    },
+    {
+      "rule_id": "LAB-D2-GRAPH-STITCHING",
+      "diagnostic_id": "D2",
+      "title": "Order graph node-edge sequence continuity",
+      "classification": "VDA_PROTOCOL_CONFORMANCE",
+      "authority": {
+        "kind": "VDA_PUBLISHED_PDF",
+        "source_set_id": "vda5050-3.0.0-2026-08-06",
+        "section": "6.1.1",
+        "obligation": "SHALL",
+        "normative_subject": "FLEET_CONTROL"
+      },
+      "applicability": {
+        "required_observations": [
+          "a complete order payload containing nodes and edges",
+          "trusted actor mapping proves that fleet control published the order"
+        ]
+      },
+      "evaluated_assertions": [
+        "sequenceId is continuous across node-edge-node traversal",
+        "the number of edges equals the number of nodes minus one",
+        "each edge sequenceId lies between its adjacent node sequenceIds"
+      ],
+      "does_not_claim": [
+        "that all base/horizon update and release constraints are evaluated",
+        "that the mobile robot accepted the order"
+      ],
+      "implementation_status": "IMPLEMENTED_SUBSET"
+    },
+    {
+      "rule_id": "LAB-D3-NEW-BASE-REQUEST",
+      "diagnostic_id": "D3",
+      "title": "newBaseRequest without an observable responsive order update",
+      "classification": "PROJECT_DIAGNOSTIC",
+      "authority": {
+        "kind": "PROJECT_SPECIFICATION",
+        "source": "rules/phase1.json",
+        "section": "LAB-D3-NEW-BASE-REQUEST",
+        "obligation": "INFORMATIVE",
+        "normative_subject": "UNKNOWN"
+      },
+      "informative_vda_context": [
+        {
+          "kind": "VDA_PUBLISHED_PDF",
+          "source_set_id": "vda5050-3.0.0-2026-08-06",
+          "section": "6.6.3",
+          "note": "Defines the mobile robot's base-request behavior."
+        },
+        {
+          "kind": "VDA_PUBLISHED_PDF",
+          "source_set_id": "vda5050-3.0.0-2026-08-06",
+          "section": "7.8",
+          "note": "Defines the newBaseRequest state field as a trigger for fleet control to send a new base."
+        }
+      ],
+      "applicability": {
+        "required_observations": [
+          "newBaseRequest is true in a mobile-robot state",
+          "the observation window can see relevant fleet-control order publications",
+          "order identity matching is possible"
+        ]
+      },
+      "decision_contract": {
+        "absence_can_be_decisive_only_when": "all common absence-proof requirements and the configured response window are satisfied",
+        "otherwise": "INCONCLUSIVE"
+      },
+      "does_not_claim": [
+        "a universal VDA timing deadline",
+        "that braking or a physical stop occurred",
+        "a normative violation unless a future source/profile supplies the missing obligation"
+      ],
+      "implementation_status": "IMPLEMENTED_PROJECT_DIAGNOSTIC"
+    },
+    {
+      "rule_id": "LAB-D4-RECONNECT-STATE",
+      "diagnostic_id": "D4",
+      "title": "ONLINE publication after the mobile robot comes online",
+      "classification": "VDA_PROTOCOL_CONFORMANCE",
+      "authority": {
+        "kind": "VDA_PUBLISHED_PDF",
+        "source_set_id": "vda5050-3.0.0-2026-08-06",
+        "section": "6.5",
+        "obligation": "SHALL",
+        "normative_subject": "MOBILE_ROBOT"
+      },
+      "applicability": {
+        "required_observations": [
+          "a prior OFFLINE or CONNECTION_BROKEN state, when relevant to the incident",
+          "independent evidence that the mobile-robot MQTT client subsequently came online in a new or resumed connection epoch",
+          "a rule-complete connection-topic capture for that epoch",
+          "trusted actor mapping proves the connection publisher is the mobile robot"
+        ]
+      },
+      "expected_protocol_response": {
+        "connection_state": "ONLINE",
+        "retained": true
+      },
+      "does_not_claim": [
+        "that an OFFLINE publication alone proves a later reconnect",
+        "that wall-clock elapsed time proves a deadline"
+      ],
+      "implementation_status": "IMPLEMENTED_GUARDED",
+      "implementation_guard": "The engine requires the same known participant and a changed, non-empty participant connection epoch after OFFLINE. Without independent reconnect evidence, the verdict remains INCONCLUSIVE."
+    },
+    {
+      "rule_id": "LAB-D5-CANCEL-LIFECYCLE",
+      "diagnostic_id": "D5",
+      "title": "cancelOrder action lifecycle reaches a terminal state",
+      "classification": "VDA_PROTOCOL_CONFORMANCE",
+      "authority": {
+        "kind": "VDA_PUBLISHED_PDF",
+        "source_set_id": "vda5050-3.0.0-2026-08-06",
+        "section": "6.1.3",
+        "obligation": "SHALL",
+        "normative_subject": "MOBILE_ROBOT"
+      },
+      "applicability": {
+        "required_observations": [
+          "a cancelOrder instant action whose publisher is attributed to fleet control",
+          "the cancel actionId is parseable",
+          "the capture contains the mobile-robot actionStates through completion or failure",
+          "trusted actor mapping proves the state publisher is the mobile robot"
+        ]
+      },
+      "expected_protocol_response": {
+        "active_matching_order": "cancelOrder reports RUNNING while required movement/actions remain, then FINISHED after they stop or finish",
+        "idle_or_nonmatching_order": "cancelOrder reports FAILED"
+      },
+      "does_not_claim": [
+        "that a terminal protocol state proves the physical robot stopped safely",
+        "that every action's cancelAllowed behavior is evaluated in the current subset"
+      ],
+      "implementation_status": "IMPLEMENTED_SUBSET",
+      "implementation_limitation": "The current subset checks for a later terminal state associated with the cancel actionId; full movement, order, node, edge, and per-action transition validation remains future work."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "topic": "uagv/v3/acme/r1/connection",
+    "timestamp": "2026-08-06T00:01:00Z",
+    "payload": {
+      "headerId": 7,
+      "timestamp": "2026-08-06T00:01:00Z",
+      "manufacturer": "acme",
+      "serialNumber": "r1",
+      "connectionState": "OFFLINE"
+    }
+  }
+]

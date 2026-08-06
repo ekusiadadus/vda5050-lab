@@ -1,0 +1,26 @@
+[package]
+name = "vda5050-doctor"
+description = "Offline, evidence-bounded diagnosis for VDA 5050 traces"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+vda5050-core = { version = "0.1.0", path = "../../crates/vda5050-core" }
+vda5050-doctor-engine = { version = "0.1.0", path = "../../crates/vda5050-doctor" }
+vda5050-import = { version = "0.1.0", path = "../../crates/vda5050-import" }
+vda5050-report = { version = "0.1.0", path = "../../crates/vda5050-report" }
+
+[build-dependencies]
+sha2.workspace = true
+
+[lints]
+workspace = true
