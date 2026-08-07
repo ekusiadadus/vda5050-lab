@@ -9,12 +9,13 @@ on:
       release_tag:
         description: Release tag to validate without publishing
         required: true
-        default: v0.1.0
+        default: v0.1.1
 
 permissions: {}
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+  RELEASE_SOURCE_REF: ${{ github.event_name == 'push' && github.ref || github.sha }}
 
 concurrency:
   group: release-${{ github.ref }}-${{ github.event_name }}
@@ -33,6 +34,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
 
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
@@ -44,8 +46,7 @@ jobs:
           version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "vda5050-doctor") | .version')"
           test "$RELEASE_TAG" = "v$version"
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            test "$(git cat-file -t "$RELEASE_TAG")" = "tag"
-            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+            bash scripts/verify-release-tag.sh "$RELEASE_TAG" "$GITHUB_SHA"
           fi
           test -f "docs/releases/$RELEASE_TAG.md"
           grep -Fq "## [$version]" CHANGELOG.md
@@ -101,6 +102,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
 
       - name: Install pinned Rust toolchain and target
         shell: bash
@@ -120,7 +122,7 @@ jobs:
           set -euo pipefail
           source_commit="$(git rev-parse 'HEAD^{commit}')"
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            test "$source_commit" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+            test "$source_commit" = "$GITHUB_SHA"
           fi
           echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
 
@@ -174,6 +176,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
 
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal
@@ -220,6 +223,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
 
       - name: Download release artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

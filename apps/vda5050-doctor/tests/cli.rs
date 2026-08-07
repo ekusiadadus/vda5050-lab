@@ -60,7 +60,7 @@ fn diagnose_jsonl_emits_canonical_json_with_changed_order_finding() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(report["tool"], "vda5050-doctor");
-    assert_eq!(report["tool_version"], "0.1.0");
+    assert_eq!(report["tool_version"], "0.1.1");
     assert!(
         report["build"]["dependency_lock_sha256"]
             .as_str()
@@ -103,7 +103,7 @@ fn version_reports_the_release_semver() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        "vda5050-doctor 0.1.0"
+        "vda5050-doctor 0.1.1"
     );
     assert!(output.stderr.is_empty());
 }

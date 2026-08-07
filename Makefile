@@ -25,6 +25,7 @@ lint:
 
 test:
 	cargo test --workspace --all-targets --locked
+	bash tests/release_contract.sh
 
 ci: fmt-check lint test audit deny
 

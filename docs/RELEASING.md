@@ -1,7 +1,7 @@
 # Release procedure
 
-Releases are immutable, annotated-tag builds. `v0.1.0` is a Developer Preview,
-not a public-alpha evidence claim.
+Releases are immutable, annotated-tag builds. The current release line is a
+Developer Preview, not a public-alpha evidence claim.
 
 ## Preflight
 
@@ -36,3 +36,8 @@ not a public-alpha evidence claim.
 
 Do not move or recreate a published tag. Correct a defective release with a new
 patch version and a changelog entry.
+
+The `v0.1.0` tag exercised this rule: its workflow stopped before publishing
+when the checkout action rewrote the local annotated-tag ref. The tag remains
+unchanged, and `v0.1.1` passes the tag ref explicitly to every checkout so the
+annotated object remains available for validation.

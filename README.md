@@ -23,7 +23,7 @@ protocol role.
 
 ## Status
 
-`v0.1.0` Developer Preview. This is an offline implementation preview, not a
+`v0.1.1` Developer Preview. This is an offline implementation preview, not a
 public-alpha or certification claim.
 
 The Rust workspace now contains the bounded importer, evidence model,
@@ -116,12 +116,12 @@ pilot gate passes.
 
 The Developer Preview publishes archives for Linux x86-64/Arm64, macOS Arm64,
 and Windows x86-64. Download an archive and `SHA256SUMS` from the
-[GitHub release](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.0),
+[GitHub release](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.1),
 then verify it:
 
 ```sh
 sha256sum --check SHA256SUMS
-gh attestation verify vda5050-doctor-v0.1.0-<target>.tar.gz \
+gh attestation verify vda5050-doctor-v0.1.1-<target>.tar.gz \
   --repo ekusiadadus/vda5050-lab
 ```
 

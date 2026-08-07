@@ -6,6 +6,21 @@ contracts with an explicit migration note.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-07
+
+First downloadable Developer Preview. The immutable `v0.1.0` tag did not
+produce a GitHub release because the release gate correctly stopped after
+`actions/checkout` combined the tag ref with its peeled commit SHA and
+rewrote the local annotated-tag ref to a commit ref.
+
+### Fixed
+
+- pass the tag ref explicitly to every checkout so its annotated object is
+  preserved and can be validated before publication;
+- compare every release build directly with the tag event commit SHA; and
+- normalize Windows directory opens so non-regular selected inputs reach the
+  same fail-closed `NotRegular` classification as Unix.
+
 ## [0.1.0] - 2026-08-06
 
 First Developer Preview of the offline `vda5050-doctor` CLI.
@@ -48,5 +63,6 @@ First Developer Preview of the offline `vda5050-doctor` CLI.
 - this release is not certification, functional-safety evidence, or proof of
   product usefulness.
 
-[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.0

@@ -1,9 +1,9 @@
 # vda5050-lab Implementation Plan
 
-- Status: Phase 1 implemented; v0.1.0 Developer Preview release candidate
-- Plan version: 0.5
-- Supersedes: release-unprepared revision 0.4
-- Research snapshot: 2026-08-06
+- Status: Phase 1 implemented; v0.1.1 corrective Developer Preview candidate
+- Plan version: 0.6
+- Supersedes: release-candidate revision 0.5
+- Research snapshot: 2026-08-07
 - Target repository: vda5050-lab
 - Initial executable: vda5050-doctor
 - Product implementation state: Offline vertical slice prepared for prerelease
@@ -120,7 +120,7 @@ This revision also corrects the remaining review blockers:
 
 The repository contains the Rust workspace, CLI, six library crates, locked
 dependencies, rule and source manifests, synthetic fixtures, CI and release
-workflows, community files, and release documentation. The `v0.1.0` release
+workflows, community files, and release documentation. The `v0.1.1` release
 contract produces four native archives, SHA-256 checksums, a CycloneDX SBOM,
 and Sigstore-backed GitHub attestations.
 
@@ -1084,7 +1084,8 @@ outcomes and has no separately approved plan.
    test-first contracts and synthetic fixtures.
 4. Completed locally: review code, source provenance, security tests, release
    workflow, and proof boundaries.
-5. Current: publish and remotely verify the v0.1.0 Developer Preview.
+5. Current: publish and remotely verify the v0.1.1 Developer Preview after the
+   immutable v0.1.0 tag's release gate stopped before asset publication.
 6. Pending: recruit design partners and finalize trace intake.
 7. Pending: run the private incident pilot under the approved validation
    protocol.
@@ -1098,8 +1099,9 @@ assumptions, customer-data boundaries, and which claims remain unverified.
 
 The user's 2026-08-06 release instruction authorizes completing the local
 release candidate, creating the public GitHub repository, committing and
-pushing the reviewed baseline, creating annotated tag `v0.1.0`, and publishing
-the corresponding Developer Preview with release artifacts and attestations.
+pushing the reviewed baseline, creating annotated tag `v0.1.0`, preserving it
+after its release gate stopped, and publishing the corrective annotated
+`v0.1.1` Developer Preview with release artifacts and attestations.
 It does not authorize customer outreach, customer trace transfer, broker
 connection, message publication, external operational-system access,
 simulation, fault injection, or hardware operation.
