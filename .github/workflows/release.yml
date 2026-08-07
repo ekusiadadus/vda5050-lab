@@ -283,7 +283,7 @@ jobs:
           persist-credentials: false
           ref: ${{ env.RELEASE_SOURCE_REF }}
 
-      - name: Revalidate immutable annotated tag and source
+      - name: Revalidate annotated tag and source
         shell: bash
         run: |
           set -euo pipefail
@@ -328,7 +328,7 @@ jobs:
           subject-path: ${{ runner.temp }}/release-dist/*.tar.gz
           sbom-path: ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
 
-      - name: Create immutable prerelease
+      - name: Create prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

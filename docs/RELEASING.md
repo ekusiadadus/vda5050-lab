@@ -1,7 +1,14 @@
 # Release procedure
 
-Releases are immutable, annotated-tag builds. The current release line is a
-Developer Preview, not a public-alpha evidence claim.
+Release artifacts are built from annotated tags that this project treats as
+append-only. The current release line is a Developer Preview, not a
+public-alpha evidence claim.
+
+Do not confuse that operating rule with GitHub's server-side release
+immutability. GitHub reports `v0.1.2` as `isImmutable: false`; consumers must
+verify checksums and attestations. Enabling repository release immutability is
+a [separate GitHub setting](https://docs.github.com/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+and applies only to future releases.
 
 ## Preflight
 

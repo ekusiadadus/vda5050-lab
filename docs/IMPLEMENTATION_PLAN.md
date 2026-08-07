@@ -1,6 +1,6 @@
 # vda5050-lab Implementation Plan
 
-- Status: Phase 1 implemented; v0.1.2 corrective Developer Preview candidate
+- Status: Phase 1 implemented; v0.1.2 Developer Preview published and remotely verified
 - Plan version: 0.7
 - Supersedes: release-candidate revision 0.6
 - Research snapshot: 2026-08-07
@@ -125,9 +125,10 @@ contract produces four native archives, SHA-256 checksums, a CycloneDX SBOM,
 and Sigstore-backed GitHub attestations.
 
 Local tests, lint, audit, coverage, release build, CLI smoke test, source
-manifest integrity, and SBOM generation are evidence recorded for the release
-candidate. GitHub Actions and published-asset verification remain separate
-remote proof and must pass before the release is called available.
+manifest integrity, and SBOM generation passed for `v0.1.2`. GitHub Actions,
+four native builds, the CycloneDX SBOM, all published checksums, the macOS Arm64
+binary smoke test, and SLSA/CycloneDX attestations were separately verified as
+remote proof before the release was called available.
 
 No existing robot, simulator, planner, fleet manager, or customer trace is part
 of this repository.
@@ -1064,8 +1065,8 @@ outcomes and has no separately approved plan.
 
 ## 25. Change control and rollback
 
-- The release candidate is committed as one initial, auditable repository
-  baseline because no earlier commit exists.
+- The initial Developer Preview baseline and each corrective release change
+  are preserved as separate auditable commits and annotated tags.
 - Later changes use small reviewable commits and pull requests.
 - Released rule IDs and bundle IDs are immutable.
 - Corrected rules receive a new version and migration note.
@@ -1084,9 +1085,9 @@ outcomes and has no separately approved plan.
    test-first contracts and synthetic fixtures.
 4. Completed locally: review code, source provenance, security tests, release
    workflow, and proof boundaries.
-5. Current: publish and remotely verify the v0.1.2 Developer Preview after the
-   immutable v0.1.0 and v0.1.1 tag release gates stopped before asset
-   publication.
+5. Completed: published and remotely verified the v0.1.2 Developer Preview
+   after the append-only v0.1.0 and v0.1.1 tag release gates stopped before
+   asset publication.
 6. Pending: recruit design partners and finalize trace intake.
 7. Pending: run the private incident pilot under the approved validation
    protocol.

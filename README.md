@@ -23,8 +23,9 @@ protocol role.
 
 ## Status
 
-`v0.1.2` Developer Preview release candidate. This is an offline
-implementation preview, not a public-alpha or certification claim.
+[`v0.1.2` Developer Preview](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.2)
+is published. This is an offline implementation preview, not a public-alpha or
+certification claim.
 
 The Rust workspace now contains the bounded importer, evidence model,
 versioned order comparator, eight initial rule IDs across five incident
@@ -114,10 +115,10 @@ pilot gate passes.
 
 ## Install, verify, and run
 
-When the Developer Preview prerelease is published, its automation provides
-archives for Linux x86-64/Arm64, macOS Arm64, and Windows x86-64. Download all
-six assets, verify the five checksummed payloads, and then verify both
-attestations for the archive you will run:
+The Developer Preview prerelease provides archives for Linux x86-64/Arm64,
+macOS Arm64, and Windows x86-64. Download all six assets, verify the five
+checksummed payloads, and then verify both attestations for the archive you
+will run:
 
 ```sh
 gh release download v0.1.2 --repo ekusiadadus/vda5050-lab --dir vda5050-doctor-v0.1.2
@@ -127,17 +128,23 @@ archive="vda5050-doctor-v0.1.2-x86_64-unknown-linux-gnu.tar.gz"
 gh attestation verify "$archive" \
   --repo ekusiadadus/vda5050-lab \
   --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
-  --source-ref refs/tags/v0.1.2
+  --signer-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
+  --source-ref refs/tags/v0.1.2 \
+  --source-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
+  --deny-self-hosted-runners
 gh attestation verify "$archive" \
   --repo ekusiadadus/vda5050-lab \
   --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
+  --signer-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
   --source-ref refs/tags/v0.1.2 \
+  --source-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
+  --deny-self-hosted-runners \
   --predicate-type https://cyclonedx.org/bom
 ```
 
-Each planned archive contains the binary, license, changelog, rule catalog,
-source manifests, and provenance documentation. The prerelease contract also
-includes a CycloneDX 1.5 SBOM.
+Each archive contains the binary, license, changelog, rule catalog, source
+manifests, and provenance documentation. The prerelease also includes a
+CycloneDX 1.5 SBOM.
 
 To build from source:
 
