@@ -48,6 +48,9 @@ Video generation also requires the GitHub-hosted runner's Docker Compose,
 `jq`, FFmpeg/`ffprobe`, ImageMagick, and a known DejaVu or SF system font. Their
 versions are checked for presence and recorded by the hosted environment, but
 are not locked in `Cargo.lock` or described by the Doctor CycloneDX SBOM. The
+Ubuntu release runner also installs `librsvg2-bin`: its ImageMagick 6 package
+delegates the renderer's SVG-to-PNG conversion to `rsvg-convert`. The release
+workflow verifies that command before running the media suite. The
 renderer verifies each observed D4 result, exact robot count, trace/report
 digest binding, payload-coordinate input, per-scale 1280x720 dimensions, and an
 eight-second duration. The 1920x1080 overview is composed only from those six

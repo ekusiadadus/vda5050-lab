@@ -252,9 +252,11 @@ jobs:
           sudo apt-get install --yes --no-install-recommends \
             ffmpeg \
             fonts-dejavu-core \
-            imagemagick
+            imagemagick \
+            librsvg2-bin
           ffmpeg -version | head -n 1
           convert -version | head -n 1
+          rsvg-convert --version
 
       - name: Verify renderer fixtures and render isolated fleet media
         shell: bash

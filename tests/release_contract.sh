@@ -48,6 +48,8 @@ fi
 # shellcheck disable=SC2016
 grep -Fq 'gh release create "$RELEASE_TAG" "${assets[@]}"' "$release_workflow"
 grep -Fq 'name: release-demo' "$release_workflow"
+grep -Fq 'librsvg2-bin' "$release_workflow"
+grep -Fq 'rsvg-convert --version' "$release_workflow"
 test "$(grep -c 'name: release-payload' "$release_workflow")" -eq 2
 # shellcheck disable=SC2016
 grep -Fq 'make demo-video RELEASE_TAG="$RELEASE_TAG"' "$release_workflow"
