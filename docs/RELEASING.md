@@ -41,3 +41,27 @@ The `v0.1.0` tag exercised this rule: its workflow stopped before publishing
 when the checkout action rewrote the local annotated-tag ref. The tag remains
 unchanged, and `v0.1.1` passes the tag ref explicitly to every checkout so the
 annotated object remains available for validation.
+
+The `v0.1.1` tag also remains unchanged. Its workflow completed the release
+contract, all native builds, checksums, and SLSA provenance, then stopped
+before publication because the CycloneDX generator omitted the `serialNumber`
+required by the pinned attestation action. `v0.1.2` deterministically adds and
+validates that field before the SBOM leaves the generator job.
+
+The normalizer is a discriminator, identity, size, and structural guard around
+the pinned generator output; it is not a general CycloneDX schema validator.
+It runs only on a freshly generated file inside the single-writer GitHub-hosted
+runner workspace. SHA-256 checksums and Sigstore attestations, not UUIDv5,
+provide integrity and authenticity.
+
+Before tagging, the manual release dry-run must also pass the unconditional
+payload assembly job. It downloads exactly four native archives and one SBOM,
+recomputes all checksums, and applies the same CycloneDX discriminator used by
+the pinned attestation action. It does not create attestations or a release.
+
+After publication, verify every archive twice: once with the default SLSA
+predicate and once with `--predicate-type https://cyclonedx.org/bom`. In both
+commands pin `--signer-workflow` to
+`ekusiadadus/vda5050-lab/.github/workflows/release.yml` and `--source-ref` to
+the exact annotated tag ref. For automated policy, also pin `--source-digest`
+to the tag's peeled 40-character commit.

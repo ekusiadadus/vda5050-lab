@@ -25,6 +25,29 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$archive" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' \
+            8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
+            "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+
+      - name: Lint workflows and release shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
+          shellcheck scripts/verify-release-tag.sh scripts/normalize-cyclonedx.sh tests/release_contract.sh
+
+      - name: Verify release contracts
+        run: bash tests/release_contract.sh
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
 

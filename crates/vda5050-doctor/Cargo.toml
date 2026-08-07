@@ -13,8 +13,8 @@ publish.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
-vda5050-core = { version = "0.1.1", path = "../vda5050-core" }
-vda5050-protocol = { version = "0.1.1", path = "../vda5050-protocol" }
+vda5050-core = { version = "0.1.2", path = "../vda5050-core" }
+vda5050-protocol = { version = "0.1.2", path = "../vda5050-protocol" }
 
 [lints]
 workspace = true

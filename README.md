@@ -23,8 +23,8 @@ protocol role.
 
 ## Status
 
-`v0.1.1` Developer Preview. This is an offline implementation preview, not a
-public-alpha or certification claim.
+`v0.1.2` Developer Preview release candidate. This is an offline
+implementation preview, not a public-alpha or certification claim.
 
 The Rust workspace now contains the bounded importer, evidence model,
 versioned order comparator, eight initial rule IDs across five incident
@@ -114,20 +114,30 @@ pilot gate passes.
 
 ## Install, verify, and run
 
-The Developer Preview publishes archives for Linux x86-64/Arm64, macOS Arm64,
-and Windows x86-64. Download an archive and `SHA256SUMS` from the
-[GitHub release](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.1),
-then verify it:
+When the Developer Preview prerelease is published, its automation provides
+archives for Linux x86-64/Arm64, macOS Arm64, and Windows x86-64. Download all
+six assets, verify the five checksummed payloads, and then verify both
+attestations for the archive you will run:
 
 ```sh
-sha256sum --check SHA256SUMS
-gh attestation verify vda5050-doctor-v0.1.1-<target>.tar.gz \
-  --repo ekusiadadus/vda5050-lab
+gh release download v0.1.2 --repo ekusiadadus/vda5050-lab --dir vda5050-doctor-v0.1.2
+cd vda5050-doctor-v0.1.2
+sha256sum --check SHA256SUMS  # Linux; on macOS: shasum -a 256 --check SHA256SUMS
+archive="vda5050-doctor-v0.1.2-x86_64-unknown-linux-gnu.tar.gz"
+gh attestation verify "$archive" \
+  --repo ekusiadadus/vda5050-lab \
+  --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.1.2
+gh attestation verify "$archive" \
+  --repo ekusiadadus/vda5050-lab \
+  --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.1.2 \
+  --predicate-type https://cyclonedx.org/bom
 ```
 
-Each archive contains the binary, license, changelog, rule catalog, source
-manifests, and provenance documentation. The release also contains a CycloneDX
-1.5 SBOM.
+Each planned archive contains the binary, license, changelog, rule catalog,
+source manifests, and provenance documentation. The prerelease contract also
+includes a CycloneDX 1.5 SBOM.
 
 To build from source:
 
@@ -170,6 +180,10 @@ Release maintainers also install the Rust `llvm-tools-preview` component,
 pinned `cargo-llvm-cov 0.8.7`, and `cargo-cyclonedx 0.5.9`, then run
 `make release-check`. The release gate fails below 80% line coverage or 80%
 region coverage.
+
+The release scripts also require `jq` plus either GNU `sha1sum` and
+`sha256sum`, or the macOS-compatible `shasum` fallback. CI additionally runs
+`actionlint` and `shellcheck` against the release workflow and scripts.
 
 ```sh
 rustup component add llvm-tools-preview --toolchain 1.97.1

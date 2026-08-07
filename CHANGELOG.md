@@ -6,12 +6,29 @@ contracts with an explicit migration note.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-07
+
+First downloadable Developer Preview. The immutable `v0.1.1` tag completed
+the release contract, all four native builds, checksums, and SLSA provenance,
+but stopped before publishing because the generated CycloneDX document omitted
+the `serialNumber` required by the pinned attestation action.
+
+### Fixed
+
+- add a deterministic RFC 4122 UUIDv5 `serialNumber`, bound to the canonical
+  SBOM body, source commit, tag, and repository, before attestation;
+- validate the normalized CycloneDX identity, structure, and serial-number
+  contract before upload; and
+- cover deterministic normalization, malformed input, unsafe tag, symlink,
+  and whitespace-containing path behavior with release-contract tests.
+
 ## [0.1.1] - 2026-08-07
 
-First downloadable Developer Preview. The immutable `v0.1.0` tag did not
-produce a GitHub release because the release gate correctly stopped after
-`actions/checkout` combined the tag ref with its peeled commit SHA and
-rewrote the local annotated-tag ref to a commit ref.
+Unpublished corrective release attempt. The immutable `v0.1.0` tag did not
+produce a GitHub release because the release gate stopped after
+`actions/checkout` combined the tag ref with its peeled commit SHA and rewrote
+the local annotated-tag ref to a commit ref. The `v0.1.1` gate later stopped at
+CycloneDX attestation, so it also has no GitHub release or release assets.
 
 ### Fixed
 
@@ -37,8 +54,9 @@ First Developer Preview of the offline `vda5050-doctor` CLI.
 - VDA 5050 3.0.0 source and rule-catalog provenance;
 - synthetic examples, strict CI, dependency audit, and release automation;
 - embedded tool, commit, lockfile, rule-catalog, and bundle identities; and
-- multi-platform release archives, checksums, CycloneDX SBOM, and GitHub
-  artifact attestations.
+- automation for multi-platform release archives, checksums, a CycloneDX SBOM,
+  and GitHub artifact attestations. The `v0.1.0` release attempt stopped before
+  these were published.
 
 ### Security
 
@@ -63,6 +81,7 @@ First Developer Preview of the offline `vda5050-doctor` CLI.
 - this release is not certification, functional-safety evidence, or proof of
   product usefulness.
 
-[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.1
-[0.1.0]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.2
+[0.1.1]: https://github.com/ekusiadadus/vda5050-lab/tree/v0.1.1
+[0.1.0]: https://github.com/ekusiadadus/vda5050-lab/tree/v0.1.0

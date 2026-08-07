@@ -14,10 +14,10 @@ publish.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-vda5050-core = { version = "0.1.1", path = "../../crates/vda5050-core" }
-vda5050-doctor-engine = { version = "0.1.1", path = "../../crates/vda5050-doctor" }
-vda5050-import = { version = "0.1.1", path = "../../crates/vda5050-import" }
-vda5050-report = { version = "0.1.1", path = "../../crates/vda5050-report" }
+vda5050-core = { version = "0.1.2", path = "../../crates/vda5050-core" }
+vda5050-doctor-engine = { version = "0.1.2", path = "../../crates/vda5050-doctor" }
+vda5050-import = { version = "0.1.2", path = "../../crates/vda5050-import" }
+vda5050-report = { version = "0.1.2", path = "../../crates/vda5050-report" }
 
 [build-dependencies]
 sha2.workspace = true

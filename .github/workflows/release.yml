@@ -9,13 +9,15 @@ on:
       release_tag:
         description: Release tag to validate without publishing
         required: true
-        default: v0.1.1
+        default: v0.1.2
 
 permissions: {}
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
-  RELEASE_SOURCE_REF: ${{ github.event_name == 'push' && github.ref || github.sha }}
+  # Every job checks out the immutable event commit. The annotated tag is
+  # validated separately and again immediately before publication.
+  RELEASE_SOURCE_REF: ${{ github.sha }}
 
 concurrency:
   group: release-${{ github.ref }}-${{ github.event_name }}
@@ -188,12 +190,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          source_commit="$(git rev-parse 'HEAD^{commit}')"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            test "$source_commit" = "$GITHUB_SHA"
+          fi
           SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           export SOURCE_DATE_EPOCH
           cargo cyclonedx --manifest-path apps/vda5050-doctor/Cargo.toml --format json --describe binaries --target all --spec-version 1.5
           mkdir -p dist
           mv apps/vda5050-doctor/vda5050-doctor_bin.cdx.json "dist/vda5050-doctor-${RELEASE_TAG}.cdx.json"
-          jq empty "dist/vda5050-doctor-${RELEASE_TAG}.cdx.json"
+          bash scripts/normalize-cyclonedx.sh \
+            "dist/vda5050-doctor-${RELEASE_TAG}.cdx.json" \
+            "$RELEASE_TAG" \
+            "$source_commit"
 
       - name: Upload SBOM
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -203,12 +212,61 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  assemble:
+    name: Assemble and preflight release payload
+    needs:
+      - build
+      - sbom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: ${{ runner.temp }}/release-dist
+          merge-multiple: true
+
+      - name: Generate and verify checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/release-dist"
+          expected=(
+            "vda5050-doctor-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-aarch64-unknown-linux-gnu.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}.cdx.json"
+          )
+          test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#expected[@]}"
+          for name in "${expected[@]}"; do
+            test -f "$release_dir/$name"
+            test ! -L "$release_dir/$name"
+          done
+          cd "$release_dir"
+          sha256sum "${expected[@]}" > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Validate attestation compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .bomFormat == "CycloneDX" and
+            (.serialNumber | type) == "string" and
+            (.serialNumber | length) > 0 and
+            (.specVersion | type) == "string"
+          ' "$RUNNER_TEMP/release-dist/vda5050-doctor-${RELEASE_TAG}.cdx.json" >/dev/null
+
   publish:
     name: Attest and publish Developer Preview
     if: github.event_name == 'push'
     needs:
-      - build
-      - sbom
+      - assemble
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -225,31 +283,50 @@ jobs:
           persist-credentials: false
           ref: ${{ env.RELEASE_SOURCE_REF }}
 
+      - name: Revalidate immutable annotated tag and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify-release-tag.sh "$RELEASE_TAG" "$GITHUB_SHA" origin
+
       - name: Download release artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: release-*
-          path: dist
+          path: ${{ runner.temp }}/release-dist
           merge-multiple: true
 
       - name: Generate and verify checksums
         shell: bash
         run: |
           set -euo pipefail
-          cd dist
-          sha256sum ./*.tar.gz ./*.cdx.json > SHA256SUMS
+          release_dir="$RUNNER_TEMP/release-dist"
+          expected=(
+            "vda5050-doctor-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-aarch64-unknown-linux-gnu.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
+            "vda5050-doctor-${RELEASE_TAG}.cdx.json"
+          )
+          test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#expected[@]}"
+          for name in "${expected[@]}"; do
+            test -f "$release_dir/$name"
+            test ! -L "$release_dir/$name"
+          done
+          cd "$release_dir"
+          sha256sum "${expected[@]}" > SHA256SUMS
           sha256sum --check SHA256SUMS
 
       - name: Create SLSA build-provenance attestation
         uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
         with:
-          subject-checksums: dist/SHA256SUMS
+          subject-checksums: ${{ runner.temp }}/release-dist/SHA256SUMS
 
       - name: Create CycloneDX SBOM attestation
         uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
         with:
-          subject-path: dist/*.tar.gz
-          sbom-path: dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
+          subject-path: ${{ runner.temp }}/release-dist/*.tar.gz
+          sbom-path: ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
 
       - name: Create immutable prerelease
         env:
@@ -257,7 +334,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" dist/* \
+          bash scripts/verify-release-tag.sh "$RELEASE_TAG" "$GITHUB_SHA" origin
+          release_dir="$RUNNER_TEMP/release-dist"
+          assets=(
+            "$release_dir/vda5050-doctor-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
+            "$release_dir/vda5050-doctor-${RELEASE_TAG}-aarch64-unknown-linux-gnu.tar.gz"
+            "$release_dir/vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
+            "$release_dir/vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
+            "$release_dir/vda5050-doctor-${RELEASE_TAG}.cdx.json"
+            "$release_dir/SHA256SUMS"
+          )
+          test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#assets[@]}"
+          for asset in "${assets[@]}"; do
+            test -f "$asset"
+            test ! -L "$asset"
+          done
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "vda5050-doctor $RELEASE_TAG — Developer Preview" \

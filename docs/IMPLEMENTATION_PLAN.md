@@ -1,8 +1,8 @@
 # vda5050-lab Implementation Plan
 
-- Status: Phase 1 implemented; v0.1.1 corrective Developer Preview candidate
-- Plan version: 0.6
-- Supersedes: release-candidate revision 0.5
+- Status: Phase 1 implemented; v0.1.2 corrective Developer Preview candidate
+- Plan version: 0.7
+- Supersedes: release-candidate revision 0.6
 - Research snapshot: 2026-08-07
 - Target repository: vda5050-lab
 - Initial executable: vda5050-doctor
@@ -111,7 +111,7 @@ This revision also corrects the remaining review blockers:
 | Capture manifest was both immutable and mutable | Replaces it with CaptureOpened and CaptureClosed records plus a derived final manifest |
 | Offline containment was not testable | Local content-addressed resolution only; network URI, file URI, traversal, and symlink escape fail closed |
 | Fault parameters were hidden behind a digest | Future preflight expands the resolved schedule and every hard limit |
-| Pseudonymization key handling was undefined | Removes export from alpha and defines HMAC key and public-digest rules for any future feature |
+| Pseudonymization key handling was undefined | Removes export from the Developer Preview and defines HMAC key and public-digest rules for any future feature |
 | Bundle and tool build were over-coupled | Bundle pins evaluator API and rule digest; analysis report pins the actual tool build |
 | Finding severity and VDA error level were mixed | Uses finding_severity and expected_protocol_error_level as different fields |
 | Release supply-chain controls were incomplete | Commits Cargo.lock, pins CI actions by SHA, uses minimum permissions, audits advisories, produces an SBOM, and records provenance |
@@ -120,7 +120,7 @@ This revision also corrects the remaining review blockers:
 
 The repository contains the Rust workspace, CLI, six library crates, locked
 dependencies, rule and source manifests, synthetic fixtures, CI and release
-workflows, community files, and release documentation. The `v0.1.1` release
+workflows, community files, and release documentation. The `v0.1.2` release
 contract produces four native archives, SHA-256 checksums, a CycloneDX SBOM,
 and Sigstore-backed GitHub attestations.
 
@@ -174,7 +174,7 @@ facts.
 
 ### 6.1 Inputs
 
-The alpha accepts local, regular files:
+The Developer Preview accepts local, regular files:
 
 - canonical vda5050-lab JSONL;
 - a documented message-envelope JSON array; and
@@ -193,7 +193,7 @@ before any incident diagnosis runs.
 
 ### 6.2 Outputs
 
-The alpha emits:
+The Developer Preview emits:
 
 - a bounded terminal summary; and
 - canonical JSON.
@@ -377,7 +377,7 @@ If an imported trace has wall-clock timestamps only, ordering may use a proved
 source sequence, but deadline and duration claims are INCONCLUSIVE when clock
 adjustment or uncertainty could change the result.
 
-The alpha evaluates one capture domain at a time. It does not attempt a general
+The Developer Preview evaluates one capture domain at a time. It does not attempt a general
 multi-source partial-order merge. Explicit correlated events may be added in a
 later offline release.
 
@@ -412,7 +412,7 @@ store selected by digest. The resolver rejects:
 - device files and named pipes; and
 - references whose digest is not in the selected bundle manifest.
 
-The first alpha accepts regular JSON and JSONL files, not archives. Archive
+The Developer Preview accepts regular JSON and JSONL files, not archives. Archive
 support requires a separate threat model and tests.
 
 Network-access denial is tested at the process boundary in CI, not stated only
@@ -629,7 +629,7 @@ It distinguishes:
 - a mixed-version boundary requiring an adapter; and
 - insufficient evidence.
 
-The alpha recommends migration work but does not generate or deploy an adapter.
+The planned public alpha may recommend migration work but will not generate or deploy an adapter.
 Each migration rule cites both version sources and has 2.1, 3.0, mixed, and
 unknown fixtures.
 
@@ -747,15 +747,15 @@ Gate:
   sites; and
 - all rule evaluators link to 100% of their required fixtures.
 
-Current local result on 2026-08-06:
+Current local result on 2026-08-07:
 
 - 86 locked workspace tests pass;
 - strict workspace Clippy passes with warnings denied;
-- LLVM workspace coverage is 86.63% lines, 86.93% regions, and 87.57%
+- LLVM workspace coverage is 86.66% lines, 86.93% regions, and 87.57%
   functions; CI and release verification fail below 80% lines or regions;
 - the selected Rust/Xcode LLVM pipeline reports zero measurable branch sites,
   so no branch percentage is claimed;
-- RustSec scanned 56 locked crate packages against 1,190 advisories and found
+- RustSec scanned 89 locked crate dependencies against 1,190 advisories and found
   no known vulnerability;
 - the synthetic CLI examples pass on macOS;
 - Linux CI and the multi-platform tag workflow are configured; their remote
@@ -933,7 +933,7 @@ Coverage does not replace incident-pilot evidence.
 - A digest of a private source trace is not included in a public fixture because
   it can enable confirmation by a party that possesses the original.
 
-Pseudonymization is not an alpha feature. If later approved, it must use a
+Pseudonymization is not a Developer Preview feature. If later approved, it must use a
 high-entropy per-case HMAC key kept outside the export, define rotation and
 destruction, fail closed for unknown fields and malformed payloads, and publish
 neither the key nor an unkeyed source digest.
@@ -1057,7 +1057,7 @@ contract.
 
 ### Risk: viewer or active scope returns too early
 
-Mitigation: no related crate or release gate exists in the alpha architecture.
+Mitigation: no related crate or release gate exists in the Developer Preview architecture.
 
 Stop condition: requested work does not improve validated offline incident
 outcomes and has no separately approved plan.
@@ -1084,8 +1084,9 @@ outcomes and has no separately approved plan.
    test-first contracts and synthetic fixtures.
 4. Completed locally: review code, source provenance, security tests, release
    workflow, and proof boundaries.
-5. Current: publish and remotely verify the v0.1.1 Developer Preview after the
-   immutable v0.1.0 tag's release gate stopped before asset publication.
+5. Current: publish and remotely verify the v0.1.2 Developer Preview after the
+   immutable v0.1.0 and v0.1.1 tag release gates stopped before asset
+   publication.
 6. Pending: recruit design partners and finalize trace intake.
 7. Pending: run the private incident pilot under the approved validation
    protocol.
@@ -1100,8 +1101,9 @@ assumptions, customer-data boundaries, and which claims remain unverified.
 The user's 2026-08-06 release instruction authorizes completing the local
 release candidate, creating the public GitHub repository, committing and
 pushing the reviewed baseline, creating annotated tag `v0.1.0`, preserving it
-after its release gate stopped, and publishing the corrective annotated
-`v0.1.1` Developer Preview with release artifacts and attestations.
+after its release gate stopped, preserving the corrective `v0.1.1` tag after
+its release gate also stopped, and publishing the annotated `v0.1.2` Developer
+Preview with release artifacts and attestations.
 It does not authorize customer outreach, customer trace transfer, broker
 connection, message publication, external operational-system access,
 simulation, fault injection, or hardware operation.

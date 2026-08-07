@@ -11,7 +11,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.97"
 license = "Apache-2.0"
@@ -30,7 +30,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 thiserror = "2.0"
-vda5050-local-fs = { version = "0.1.1", path = "crates/vda5050-local-fs" }
+vda5050-local-fs = { version = "0.1.2", path = "crates/vda5050-local-fs" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
