@@ -95,6 +95,17 @@ jq -e '
     .investigation_target == "MOBILE_ROBOT"
   )
 ' "$report_path" >/dev/null || fail "report does not contain the expected D4 fault"
+doctor_rule="$(jq -er '
+  first(.findings[] | select(.rule_id == "LAB-D4-RECONNECT-STATE")) | .rule_id
+' "$report_path")"
+doctor_verdict="$(jq -er '
+  first(.findings[] | select(.rule_id == "LAB-D4-RECONNECT-STATE")) |
+  .evaluation.verdict
+' "$report_path")"
+doctor_target="$(jq -er '
+  first(.findings[] | select(.rule_id == "LAB-D4-RECONNECT-STATE")) |
+  .investigation_target
+' "$report_path")"
 
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/vda5050-fleet-media.XXXXXX")"
 frames_dir="$work_dir/frames"
@@ -187,6 +198,11 @@ render_svg() {
     fault_count=1
   fi
   density_percent="$robot_count"
+  if [[ "$robot_count" -eq 1 ]]; then
+    fleet_label="001 AGV"
+  else
+    fleet_label="$(printf '%03d AGVs' "$robot_count")"
+  fi
 
   {
     printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
@@ -195,8 +211,8 @@ render_svg() {
     printf '%s\n' '<rect x="24" y="24" width="1232" height="672" rx="24" fill="#0d1b2d" stroke="#27415f" stroke-width="2"/>'
     printf '%s\n' '<rect x="48" y="88" width="874" height="548" rx="18" fill="#102238" stroke="#29435f"/>'
     printf '%s\n' '<rect x="944" y="88" width="286" height="548" rx="18" fill="#091726"/>'
-    printf '%s\n' '<text x="52" y="62" fill="#e7f2ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="25" font-weight="bold">VDA 5050 actual trace x,y · fleet scale</text>'
-    printf '<text x="1198" y="62" text-anchor="end" fill="#68d8ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="20">%03d AGVs</text>\n' "$robot_count"
+    printf '%s\n' '<text x="52" y="62" fill="#e7f2ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="25" font-weight="bold">VDA 5050 reconnect incident · actual MQTT trace</text>'
+    printf '<text x="1198" y="62" text-anchor="end" fill="#68d8ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="20">%s</text>\n' "$fleet_label"
     printf '<text x="970" y="130" fill="#819bb8" font-family="DejaVu Sans,Arial,sans-serif" font-size="17">STAGE</text>\n'
     printf '<text x="970" y="162" fill="#ffffff" font-family="DejaVu Sans,Arial,sans-serif" font-size="24" font-weight="bold">%s</text>\n' "$stage"
     printf '<text x="970" y="192" fill="#a5bad0" font-family="DejaVu Sans,Arial,sans-serif" font-size="15">%s</text>\n' "$detail"
@@ -213,11 +229,26 @@ render_svg() {
     printf '<text x="970" y="604" fill="#5f7894" font-family="DejaVu Sans,Arial,sans-serif" font-size="12">trace %s</text>\n' "${trace_digest:0:16}"
     printf '%s\n' '<text x="52" y="672" fill="#7892ad" font-family="DejaVu Sans,Arial,sans-serif" font-size="16">Synthetic isolated fleet · actual payload coordinates · no physical DUT</text>'
 
-    awk -F '\t' \
-      -v frame="$frame_index" \
-      -v robot_count="$robot_count" \
-      -v min_x="$min_x" -v max_x="$max_x" \
-      -v min_y="$min_y" -v max_y="$max_y" '
+    if [[ "$frame_index" -eq 7 ]]; then
+      printf '%s\n' '<rect x="76" y="122" width="818" height="474" rx="22" fill="#081522" stroke="#315170" stroke-width="2"/>'
+      printf '%s\n' '<text x="112" y="168" fill="#68d8ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="18" font-weight="bold">BROKER TRACE + MATCHING SYNTHETIC EVIDENCE</text>'
+      printf '<text x="112" y="218" fill="#d9e6f3" font-family="DejaVu Sans,Arial,sans-serif" font-size="25" font-weight="bold">%s</text>\n' "$doctor_rule"
+      printf '<text x="112" y="318" fill="#ff496c" font-family="DejaVu Sans,Arial,sans-serif" font-size="82" font-weight="bold">%s</text>\n' "$doctor_verdict"
+      printf '<text x="365" y="291" fill="#819bb8" font-family="DejaVu Sans,Arial,sans-serif" font-size="17">INVESTIGATE</text>\n'
+      printf '<text x="365" y="324" fill="#ffe07a" font-family="DejaVu Sans,Arial,sans-serif" font-size="28" font-weight="bold">%s</text>\n' "$doctor_target"
+      printf '%s\n' '<circle cx="120" cy="382" r="7" fill="#5ee5bd"/>'
+      printf '%s\n' '<text x="142" y="390" fill="#d9e6f3" font-family="DejaVu Sans,Arial,sans-serif" font-size="22">Reconnect epoch observed</text>'
+      printf '%s\n' '<circle cx="120" cy="430" r="7" fill="#ff7088"/>'
+      printf '%s\n' '<text x="142" y="438" fill="#d9e6f3" font-family="DejaVu Sans,Arial,sans-serif" font-size="22">No retained ONLINE observed</text>'
+      printf '%s\n' '<rect x="108" y="474" width="754" height="82" rx="14" fill="#102a3e"/>'
+      printf '%s\n' '<text x="132" y="506" fill="#68d8ff" font-family="DejaVu Sans,Arial,sans-serif" font-size="18" font-weight="bold">EVIDENCE BOUNDARY</text>'
+      printf '%s\n' '<text x="132" y="538" fill="#d9e6f3" font-family="DejaVu Sans,Arial,sans-serif" font-size="19">Passive trace only: INCONCLUSIVE / UNRESOLVED</text>'
+    else
+      awk -F '\t' \
+        -v frame="$frame_index" \
+        -v robot_count="$robot_count" \
+        -v min_x="$min_x" -v max_x="$max_x" \
+        -v min_y="$min_y" -v max_y="$max_y" '
       function escape(value) {
         gsub(/&/, "\\&amp;", value)
         gsub(/</, "\\&lt;", value)
@@ -260,7 +291,8 @@ render_svg() {
           printf "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"#ffffff\" font-family=\"DejaVu Sans,Arial,sans-serif\" font-size=\"%d\" font-weight=\"bold\">%s</text>\n", px, py + 1, font_size, escape(id)
         }
       }
-    ' "$positions"
+      ' "$positions"
+    fi
     printf '%s\n' '</svg>'
   } >"$svg_path"
 }

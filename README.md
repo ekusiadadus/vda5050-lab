@@ -4,22 +4,39 @@
 [![Release](https://img.shields.io/github/v/release/ekusiadadus/vda5050-lab?include_prereleases)](https://github.com/ekusiadadus/vda5050-lab/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-vda5050-lab is the home of **vda5050-doctor**, an offline incident-diagnosis
-CLI for VDA 5050 traces.
+**Diagnose why a VDA 5050 integration stopped, without uploading its trace.**
 
-Give it MQTT observations from a stalled or misbehaving integration. It should
-explain, in less than ten minutes of user time:
+`vda5050-doctor` is an offline Rust CLI that turns MQTT observations into an
+evidence-linked incident explanation: the relevant VDA clause, the messages
+that support the finding, what the capture cannot prove, and where to
+investigate next. It does not assign blame when the evidence is insufficient.
 
-1. what was observed;
-2. which messages support that explanation;
-3. which VDA 5050 version and clause are relevant;
-4. what cannot be concluded from the capture;
-5. which logs or observations to collect next; and
-6. whether the next investigation should start with the mobile robot, fleet
-   control, transport, or remain unresolved.
+[![One-robot VDA 5050 reconnect incident: movement, connection break, reconnect, and Doctor diagnosis](docs/assets/vda5050-demo-preview.gif)](docs/DEMO.md)
 
-The product does not assign blame when the evidence cannot prove the responsible
-protocol role.
+The preview replays broker-observed coordinates from an isolated synthetic run.
+Its final frame shows the key evidence boundary: the passive trace alone is
+`INCONCLUSIVE / UNRESOLVED`; the same trace with its matching, trace-bound
+Tier 1 manifest supports the synthetic `FAIL / MOBILE_ROBOT` diagnosis.
+
+## Quick start
+
+Run the offline example with Rust 1.97.1:
+
+```sh
+git clone https://github.com/ekusiadadus/vda5050-lab.git
+cd vda5050-lab
+make diagnose-example
+```
+
+Or run the complete isolated MQTT incident with Docker Compose and `jq`:
+
+```sh
+bash scripts/run-tier1-demo.sh
+```
+
+The demo owns a disposable internal broker and virtual actors. Doctor runs
+with networking disabled and analyzes only the generated local trace. See
+[the demo guide](docs/DEMO.md) for the fault/passive/control comparison.
 
 ## Status
 
@@ -119,38 +136,27 @@ pilot gate passes.
 ## Install, verify, and run
 
 The Developer Preview prerelease provides archives for Linux x86-64/Arm64,
-macOS Arm64, and Windows x86-64, a CycloneDX SBOM, twelve per-scale demo media
-files, two fleet-overview media files, and the checksum file. Download all
-twenty assets, verify the nineteen checksummed payloads, and then verify both
-attestations for the archive you will run:
+macOS Arm64, and Windows x86-64. Download only the archive for your platform
+plus the checksum index. For example, on Linux x86-64:
 
 ```sh
-gh release download v0.2.0 --repo ekusiadadus/vda5050-lab --dir vda5050-doctor-v0.2.0
-cd vda5050-doctor-v0.2.0
-sha256sum --check SHA256SUMS  # Linux; on macOS: shasum -a 256 --check SHA256SUMS
-source_digest="$(git ls-remote https://github.com/ekusiadadus/vda5050-lab.git 'refs/tags/v0.2.0^{}' | cut -f1)"
-test "${#source_digest}" -eq 40
 archive="vda5050-doctor-v0.2.0-x86_64-unknown-linux-gnu.tar.gz"
-gh attestation verify "$archive" \
+gh release download v0.2.0 \
   --repo ekusiadadus/vda5050-lab \
-  --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
-  --signer-digest "$source_digest" \
-  --source-ref refs/tags/v0.2.0 \
-  --source-digest "$source_digest" \
-  --deny-self-hosted-runners
-gh attestation verify "$archive" \
-  --repo ekusiadadus/vda5050-lab \
-  --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
-  --signer-digest "$source_digest" \
-  --source-ref refs/tags/v0.2.0 \
-  --source-digest "$source_digest" \
-  --deny-self-hosted-runners \
-  --predicate-type https://cyclonedx.org/bom
+  --dir vda5050-doctor-v0.2.0 \
+  --pattern "$archive" \
+  --pattern SHA256SUMS
+cd vda5050-doctor-v0.2.0
+grep -F "  $archive" SHA256SUMS | sha256sum --check
+tar -xzf "$archive"
+./vda5050-doctor-v0.2.0-x86_64-unknown-linux-gnu/vda5050-doctor --version
 ```
 
 Each archive contains the binary, license, changelog, rule catalog, source
 manifests, and provenance documentation. The prerelease also includes a
-CycloneDX 1.5 SBOM.
+CycloneDX 1.5 SBOM, reproducible demo media, checksums, and GitHub attestations.
+The complete verification procedure is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 To build from source:
 
@@ -224,7 +230,9 @@ order ID, participant identity, and route. `demo-001` is the only fault target;
 the remaining robots are non-fault background controls so cross-robot
 attribution errors are visible.
 
-[![VDA 5050 Tier 1 reconnect demo preview](docs/assets/vda5050-demo-preview.gif)](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-overview-v0.2.0.mp4)
+The focused one-robot preview appears at the top of this README. The Release
+also contains the full-resolution one-robot recording and bounded fleet-scale
+views.
 
 Run the recommended internal-network workflow with Docker Compose and `jq`:
 

@@ -25,6 +25,16 @@ test "$(grep -Ec 'vda5050-fleet-overview-.*\.mp4' "$release_workflow")" -eq 3
 test "$(grep -Ec 'vda5050-fleet-overview-.*\.gif' "$release_workflow")" -eq 3
 grep -Fq 'exactly twenty assets' "$repository_root/docs/releases/v0.2.0.md"
 grep -Fq 'nineteen checksummed payloads' "$repository_root/docs/RELEASING.md"
+grep -Fq "cp -- \"\$hero_gif\" \"\$preview_path\"" "$repository_root/scripts/render-demo-video.sh"
+hero_line="$(grep -nF 'docs/assets/vda5050-demo-preview.gif' "$repository_root/README.md" | head -n 1 | cut -d: -f1)"
+status_line="$(grep -nF '## Status' "$repository_root/README.md" | head -n 1 | cut -d: -f1)"
+test -n "$hero_line" && test -n "$status_line" && test "$hero_line" -lt "$status_line"
+grep -Fq '## Quick start' "$repository_root/README.md"
+grep -Fq 'make diagnose-example' "$repository_root/README.md"
+if grep -Fq 'Download all twenty assets' "$repository_root/README.md"; then
+  printf 'README asks first-time users to download the complete release payload\n' >&2
+  exit 1
+fi
 
 test_root="$(mktemp -d "${TMPDIR:-/tmp}/vda5050-fleet-release.XXXXXX")"
 trap 'rm -rf -- "$test_root"' EXIT

@@ -96,8 +96,12 @@ done
 
 overview_video="$media_dir/vda5050-fleet-overview-${release_tag}.mp4"
 overview_gif="$media_dir/vda5050-fleet-overview-${release_tag}.gif"
+hero_video="$media_dir/vda5050-fleet-001-${release_tag}.mp4"
+hero_gif="$media_dir/vda5050-fleet-001-${release_tag}.gif"
 [[ ! -L "$overview_video" && ! -L "$overview_gif" ]] \
   || fail "overview output must not be a symlink"
+[[ -f "$hero_video" && -f "$hero_gif" && ! -L "$hero_video" && ! -L "$hero_gif" ]] \
+  || fail "single-robot hero media is missing or unsafe"
 
 overview_tmp="$work_dir/overview.mp4"
 ffmpeg -hide_banner -loglevel error -y \
@@ -147,7 +151,7 @@ release_dir="$media_dir"
 bash "$repository_root/scripts/verify-release-assets.sh" media "$release_dir" "$release_tag"
 
 if [[ -n "$preview_path" ]]; then
-  cp -- "$overview_gif" "$preview_path"
+  cp -- "$hero_gif" "$preview_path"
 fi
 
 printf 'Fleet media suite: %s\n' "$media_dir"

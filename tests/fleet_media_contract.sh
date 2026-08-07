@@ -5,6 +5,8 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 renderer="$repository_root/scripts/render-fleet-media.sh"
 
 test -f "$renderer"
+grep -Fq 'BROKER TRACE + MATCHING SYNTHETIC EVIDENCE' "$renderer"
+grep -Fq 'Passive trace only: INCONCLUSIVE / UNRESOLVED' "$renderer"
 
 for command_name in jq ffmpeg ffprobe; do
   command -v "$command_name" >/dev/null 2>&1
