@@ -6,6 +6,58 @@ contracts with an explicit migration note.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-07
+
+First synthetic end-to-end demonstration of the evidence boundary behind
+`vda5050-doctor`. This release adds an isolated Tier 1 MQTT scenario while
+keeping diagnosis offline and making the difference between passive
+INCONCLUSIVE evidence and same-job synthetic FAIL evidence visible.
+
+### Added
+
+- a bounded virtual fleet-control, mobile-robot, and recorder harness for the
+  reconnect-without-ONLINE incident;
+- a trace-digest-bound synthetic evidence manifest with explicit actor,
+  participant, connection-epoch, capture-closure, and completeness assertions;
+- a disposable, internal-only Docker Compose topology for the broker and demo,
+  with a network-disabled Doctor container;
+- fault and control runs that demonstrate the absence-sensitive D4 rule without
+  making a production, hardware, or interoperability claim; and
+- deterministic MP4 and GIF views for 1, 2, 5, 10, 50, and 100 robots, plus a
+  six-scale overview, all rendered from broker-observed `x`/`y` values; every
+  view keeps robot IDs, fleet density, the `demo-001` fault target, and
+  fleet-state counts visible.
+
+### Changed
+
+- reconnect diagnosis recognizes VDA 5050 3.0.0 `CONNECTION_BROKEN` evidence;
+- cancel diagnosis accepts terminal states from `instantActionStates` as well
+  as legacy `actionStates` observations; and
+- semantic order comparison covers additional VDA 5050 3.0.0 nested fields and
+  keeps unknown extensions outside normative equality claims.
+
+### Security
+
+- release assembly now downloads named build artifacts individually, rejects
+  every non-allowlisted entry, and publishes only twenty explicitly named
+  assets;
+- all fourteen fleet media files must be regular non-symlinks with fixed names;
+  MP4 files require an ISO BMFF signature and a 100 MiB ceiling, while GIF files
+  require a GIF87a/GIF89a signature and a 50 MiB ceiling; all are included in
+  `SHA256SUMS` and SLSA provenance; and
+- the binary-scoped CycloneDX attestation remains limited to the four Doctor
+  archives and is not misapplied to the demo video.
+
+### Known limitations
+
+- the demo actors and evidence are synthetic and generated in one isolated job;
+- MQTT CONNECT and retained connection publications are side effects, so the
+  harness must not be pointed at a shared, customer, or production broker;
+- the videos and GIFs are explanatory media, not protocol evidence,
+  certification, or a byte-reproducibility claim for encoding; and
+- the release still has no real customer-trace pilot, external DUT, or physical
+  robot validation.
+
 ## [0.1.2] - 2026-08-07
 
 First downloadable Developer Preview. The immutable `v0.1.1` tag completed
@@ -81,7 +133,8 @@ First Developer Preview of the offline `vda5050-doctor` CLI.
 - this release is not certification, functional-safety evidence, or proof of
   product usefulness.
 
-[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/ekusiadadus/vda5050-lab/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.2.0
 [0.1.2]: https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ekusiadadus/vda5050-lab/tree/v0.1.1
 [0.1.0]: https://github.com/ekusiadadus/vda5050-lab/tree/v0.1.0

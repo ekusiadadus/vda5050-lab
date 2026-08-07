@@ -182,12 +182,20 @@ fn capture_metadata_and_external_payload_are_available_without_mutation() {
         Some(9),
         "vda5050/v3/acme/r1/order",
         external,
+    )
+    .with_time(
+        Some("2026-08-07T00:00:00Z".to_owned()),
+        Some(42),
+        Some("broker-clock".to_owned()),
+        Some("clock-epoch-1".to_owned()),
     );
     assert_eq!(observed.event_id(), "event-x");
     assert_eq!(observed.capture_id(), "capture-x");
     assert_eq!(observed.capture_point(), CapturePoint::BrokerIngress);
     assert_eq!(observed.source_sequence(), Some(9));
     assert_eq!(observed.observed_topic(), "vda5050/v3/acme/r1/order");
+    assert_eq!(observed.observed_monotonic_ns(), Some(42));
+    assert_eq!(observed.clock_epoch(), Some("clock-epoch-1"));
     assert!(observed.payload().inline_bytes().is_none());
 }
 

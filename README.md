@@ -23,9 +23,10 @@ protocol role.
 
 ## Status
 
-[`v0.1.2` Developer Preview](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.1.2)
-is published. This is an offline implementation preview, not a public-alpha or
-certification claim.
+[`v0.2.0` Synthetic Demo Preview](https://github.com/ekusiadadus/vda5050-lab/releases/tag/v0.2.0)
+is the current Developer Preview. This is an offline diagnostic implementation
+plus a bounded synthetic demonstration, not a public-alpha or certification
+claim.
 
 The Rust workspace now contains the bounded importer, evidence model,
 versioned order comparator, eight initial rule IDs across five incident
@@ -33,9 +34,11 @@ families, terminal/JSON reporting, synthetic fixtures, and pinned CI. Local
 formatting, strict Clippy, locked tests, coverage, and RustSec audit pass.
 
 Product usefulness is still unproven: no real customer trace, design-partner
-pilot, MQTT connection, or hardware execution has been performed. The CLI
-deliberately accepts only VDA 5050 3.0.0 until a separate 2.1 rule profile and
-source bundle exist.
+pilot, external DUT, customer broker, or hardware execution has been
+validated. The Doctor deliberately accepts only VDA 5050 3.0.0 until a
+separate 2.1 rule profile and source bundle exist. A separate Tier 1 demo can
+exercise virtual actors against a disposable local broker, but its same-job
+synthetic evidence is not production proof.
 
 ## Why this project
 
@@ -116,28 +119,31 @@ pilot gate passes.
 ## Install, verify, and run
 
 The Developer Preview prerelease provides archives for Linux x86-64/Arm64,
-macOS Arm64, and Windows x86-64. Download all six assets, verify the five
-checksummed payloads, and then verify both attestations for the archive you
-will run:
+macOS Arm64, and Windows x86-64, a CycloneDX SBOM, twelve per-scale demo media
+files, two fleet-overview media files, and the checksum file. Download all
+twenty assets, verify the nineteen checksummed payloads, and then verify both
+attestations for the archive you will run:
 
 ```sh
-gh release download v0.1.2 --repo ekusiadadus/vda5050-lab --dir vda5050-doctor-v0.1.2
-cd vda5050-doctor-v0.1.2
+gh release download v0.2.0 --repo ekusiadadus/vda5050-lab --dir vda5050-doctor-v0.2.0
+cd vda5050-doctor-v0.2.0
 sha256sum --check SHA256SUMS  # Linux; on macOS: shasum -a 256 --check SHA256SUMS
-archive="vda5050-doctor-v0.1.2-x86_64-unknown-linux-gnu.tar.gz"
+source_digest="$(git ls-remote https://github.com/ekusiadadus/vda5050-lab.git 'refs/tags/v0.2.0^{}' | cut -f1)"
+test "${#source_digest}" -eq 40
+archive="vda5050-doctor-v0.2.0-x86_64-unknown-linux-gnu.tar.gz"
 gh attestation verify "$archive" \
   --repo ekusiadadus/vda5050-lab \
   --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
-  --signer-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
-  --source-ref refs/tags/v0.1.2 \
-  --source-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
+  --signer-digest "$source_digest" \
+  --source-ref refs/tags/v0.2.0 \
+  --source-digest "$source_digest" \
   --deny-self-hosted-runners
 gh attestation verify "$archive" \
   --repo ekusiadadus/vda5050-lab \
   --signer-workflow ekusiadadus/vda5050-lab/.github/workflows/release.yml \
-  --signer-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
-  --source-ref refs/tags/v0.1.2 \
-  --source-digest 81f5973344efa04ae9f236e2f26aff156e305947 \
+  --signer-digest "$source_digest" \
+  --source-ref refs/tags/v0.2.0 \
+  --source-digest "$source_digest" \
   --deny-self-hosted-runners \
   --predicate-type https://cyclonedx.org/bom
 ```
@@ -185,8 +191,10 @@ cargo install cargo-deny --version 0.20.2 --locked
 
 Release maintainers also install the Rust `llvm-tools-preview` component,
 pinned `cargo-llvm-cov 0.8.7`, and `cargo-cyclonedx 0.5.9`, then run
-`make release-check`. The release gate fails below 80% line coverage or 80%
-region coverage.
+`make release-check`. The offline Doctor and library gate fails below 80% line
+coverage or 80% region coverage. The live demo orchestration is excluded from
+that unit-coverage denominator and is instead gated by real Docker/Mosquitto
+incident, passive, control, and pre-CONNECT failure tests.
 
 The release scripts also require `jq` plus either GNU `sha1sum` and
 `sha256sum`, or the macOS-compatible `shasum` fallback. CI additionally runs
@@ -201,6 +209,84 @@ make release-check
 
 Synthetic examples and expected proof boundaries are documented in
 [fixtures/synthetic/README.md](fixtures/synthetic/README.md).
+
+## Isolated Tier 1 multi-robot demo
+
+`vda5050-demo` is a separate, intentionally bounded executable for one
+synthetic reconnect scenario at 1 through 100 virtual mobile robots. The
+published scale suite is `1, 2, 5, 10, 50, 100`. It connects virtual actors to
+a disposable internal broker, records broker-egress observations, and
+demonstrates the evidence boundary around a missing `ONLINE` publication after
+`CONNECTION_BROKEN`.
+
+Every robot has a distinct VDA `serialNumber`, topic prefix, MQTT ClientId,
+order ID, participant identity, and route. `demo-001` is the only fault target;
+the remaining robots are non-fault background controls so cross-robot
+attribution errors are visible.
+
+[![VDA 5050 Tier 1 reconnect demo preview](docs/assets/vda5050-demo-preview.gif)](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-overview-v0.2.0.mp4)
+
+Run the recommended internal-network workflow with Docker Compose and `jq`:
+
+```sh
+bash scripts/run-tier1-demo.sh
+```
+
+Select one published scale or run the complete suite:
+
+```sh
+make demo-fleet DEMO_ROBOTS=10
+make demo-fleet-e2e
+```
+
+The script validates the resolved Compose topology and the runtime Docker
+network before MQTT CONNECT, exposes no broker host port, runs Doctor with no
+network, verifies the expected D4 result, and tears the stack down.
+
+The XY layout is deterministic. For zero-based robot index `i`,
+`column = i / 10` and `row = i % 10`; its start is
+`(6 * column, 2 * row)`, released end is `(start.x + 4, start.y)`, and horizon
+end is `(start.x + 4, start.y + 1)`. Values are meters in the synthetic
+project-specific `warehouse-demo` map. The lower-left origin is a presentation
+convention, not a measurement from a real warehouse.
+
+| Count | Purpose | Release media |
+| ---: | --- | --- |
+| 1 | Original reconnect evidence matrix | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-001-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-001-v0.2.0.gif) |
+| 2 | Fault/control identity separation | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-002-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-002-v0.2.0.gif) |
+| 5 | Human-reviewable repeated routes | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-005-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-005-v0.2.0.gif) |
+| 10 | One complete ten-lane column | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-010-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-010-v0.2.0.gif) |
+| 50 | Larger bounded trace and manifest | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-050-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-050-v0.2.0.gif) |
+| 100 | Supported isolated-simulation input ceiling | [MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-100-v0.2.0.mp4) · [GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-100-v0.2.0.gif) |
+
+The [1920×1080 overview MP4](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-overview-v0.2.0.mp4)
+and [overview GIF](https://github.com/ekusiadadus/vda5050-lab/releases/download/v0.2.0/vda5050-fleet-overview-v0.2.0.gif)
+show all six traces side by side.
+
+The 100-robot run is an isolated synthetic workload. It is not evidence of 100
+physical robots, production capacity, real-time performance, vendor
+interoperability, collision avoidance, or a fleet-size SLA.
+
+The default fault run produces:
+
+- `run-manifest.json`, with the robot count, coordinate system, resolved routes,
+  fault target, broker target, exact identities and topics, and declared
+  budgets;
+- `trace.canonical.jsonl`, containing the recorded observations; and
+- `synthetic-evidence.json`, containing same-job actor, participant, connection
+  epoch, completeness, and trace-digest assertions.
+
+The intended comparison is:
+
+| Input to Doctor | `LAB-D4-RECONNECT-STATE` result | What it means |
+| --- | --- | --- |
+| Fault trace alone | `INCONCLUSIVE`, target `UNRESOLVED` | Passive observations do not prove who reconnected, the connection epoch, or that the relevant topic capture was complete. |
+| Same fault trace plus its matching synthetic evidence manifest | `FAIL`, target `MOBILE_ROBOT` | The isolated demo job supplied the otherwise missing assertions. This is synthetic Tier 1 evidence, not production proof. |
+| Control trace generated with `--control-online-after-reconnect`, plus its matching manifest | No `LAB-D4-RECONNECT-STATE` finding | The expected `ONLINE` was observed in the synthetic control. Absence of this finding is not PASS, certification, or proof of general conformance. |
+
+See [docs/DEMO.md](docs/DEMO.md) for the broker boundary, exact commands, and
+interpretation rules. The design rationale and full coordinate table are in
+[ADR 0004](docs/adr/0004-multi-agv-xy-demo.md).
 
 ## Result model
 
@@ -227,7 +313,7 @@ ambiguity, or an unsupported capture vantage can force INCONCLUSIVE.
 
 ## Product boundaries
 
-The offline prototype does not:
+The `vda5050-doctor` executable remains offline. It does not:
 
 - connect to an MQTT broker;
 - publish a VDA 5050 message;
@@ -246,10 +332,16 @@ command does not yet load and verify a local protocol bundle. Source provenance
 and the runtime-compatible manifest are present in
 [docs/PROTOCOL_SOURCES.md](docs/PROTOCOL_SOURCES.md); runtime bundle integration
 remains a pre-alpha blocker.
-Active MQTT and physical-DUT work is deliberately outside the initial
-implementation plan. Its retained safety design lives in
-[docs/FUTURE_ACTIVE_TESTING.md](docs/FUTURE_ACTIVE_TESTING.md) and remains
-unapproved.
+
+The separate `vda5050-demo` executable is the sole current exception to the
+active-work boundary: it implements one Tier 1, synthetic, virtual-actor
+scenario with at most 100 virtual mobile robots against loopback or an
+explicitly asserted isolated service named `broker`. Even at 100, it does not
+authorize an external broker, software DUT, customer environment, physical
+robot, generic fault bridge, or Tier 2/3 run. Its same-job evidence manifest
+cannot be used as production evidence. The retained safety design and remaining
+approval boundary live in
+[docs/FUTURE_ACTIVE_TESTING.md](docs/FUTURE_ACTIVE_TESTING.md).
 
 ## Validation before scale
 
@@ -270,7 +362,7 @@ The complete study contract is in
 
 ## Implemented architecture
 
-The first implementation is deliberately small:
+The Doctor implementation is deliberately small:
 
 - Rust for the offline importer, normalized trace model, diagnostic engine,
   protocol-source handling, reports, and CLI;
@@ -278,6 +370,11 @@ The first implementation is deliberately small:
 - terminal and canonical JSON output;
 - versioned rule contracts and minimized synthetic fixtures; and
 - no network-capable dependency in the offline execution path.
+
+The MQTT-capable `vda5050-demo` is a separate workspace binary and dependency
+path. Doctor consumes only the local trace and, when explicitly selected, its
+matching bounded synthetic evidence manifest; Doctor does not connect to the
+demo broker.
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the
 test-first phases and release gates, [rules/phase1.json](rules/phase1.json) for
@@ -298,6 +395,7 @@ snapshot.
 ├── Makefile
 ├── README.md
 ├── SECURITY.md
+├── apps/vda5050-demo/
 ├── apps/vda5050-doctor/
 ├── bundles/manifests/
 ├── crates/
@@ -310,7 +408,9 @@ snapshot.
 ├── fixtures/synthetic/
 ├── rules/phase1.json
 └── docs/
+    ├── adr/
     ├── DEPENDENCIES.md
+    ├── DEMO.md
     ├── FUTURE_ACTIVE_TESTING.md
     ├── IMPLEMENTATION_PLAN.md
     ├── PROTOCOL_SOURCES.md

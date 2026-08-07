@@ -1,13 +1,13 @@
 # vda5050-lab Implementation Plan
 
-- Status: Phase 1 implemented; v0.1.2 Developer Preview published and remotely verified
-- Plan version: 0.7
-- Supersedes: release-candidate revision 0.6
+- Status: Phase 1 and bounded Tier 1 demo implemented; v0.2.0 release candidate
+- Plan version: 0.8
+- Supersedes: published-preview revision 0.7
 - Research snapshot: 2026-08-07
 - Target repository: vda5050-lab
 - Initial executable: vda5050-doctor
-- Product implementation state: Offline vertical slice prepared for prerelease
-- Initial operating mode: Offline only
+- Product implementation state: Offline Doctor plus synthetic demonstration
+- Initial operating mode: Doctor offline; optional isolated Tier 1 demo
 
 ## 1. Executive decision
 
@@ -80,7 +80,7 @@ truthful Developer Preview release contract.
 
 ### 3.1 Product correction
 
-The following work leaves the initial critical path:
+The following general platform work leaves the initial critical path:
 
 - active MQTT actors;
 - software or physical DUT execution;
@@ -92,9 +92,13 @@ The following work leaves the initial critical path:
 - general multi-capture partial-order reconstruction; and
 - broad syntax coverage unrelated to the first incident families.
 
-These designs are not silently discarded. Active work is retained in
-[FUTURE_ACTIVE_TESTING.md](FUTURE_ACTIVE_TESTING.md), where it remains
-unapproved.
+One narrow exception is implemented for demonstration and contributor
+onboarding: the isolated Tier 1 reconnect scenario in
+[ADR 0003](adr/0003-isolated-tier1-reconnect-demo.md). It uses only same-job
+virtual actors and does not satisfy, bypass, or weaken the product-validation
+gate. All broader active designs are retained in
+[FUTURE_ACTIVE_TESTING.md](FUTURE_ACTIVE_TESTING.md), where Tier 2, Tier 3,
+external DUT, generic fault, and physical work remain unapproved.
 
 ### 3.2 Model and safety corrections
 
@@ -118,20 +122,25 @@ This revision also corrects the remaining review blockers:
 
 ## 4. Current repository state
 
-The repository contains the Rust workspace, CLI, six library crates, locked
-dependencies, rule and source manifests, synthetic fixtures, CI and release
-workflows, community files, and release documentation. The `v0.1.2` release
-contract produces four native archives, SHA-256 checksums, a CycloneDX SBOM,
-and Sigstore-backed GitHub attestations.
+The repository contains the Rust workspace, offline Doctor CLI, six library
+crates, a separate bounded demo binary, locked dependencies, rule and source
+manifests, synthetic fixtures, an internal-only Compose topology, CI and release
+workflows, community files, and release documentation. The `v0.2.0` release
+contract produces four native Doctor archives, a binary-scoped CycloneDX SBOM,
+twelve per-scale MP4/GIF files, two fleet-overview media files,
+`SHA256SUMS`, and Sigstore-backed GitHub attestations: exactly twenty release
+assets, with the nineteen non-checksum payloads covered by the checksum
+manifest.
 
-Local tests, lint, audit, coverage, release build, CLI smoke test, source
-manifest integrity, and SBOM generation passed for `v0.1.2`. GitHub Actions,
-four native builds, the CycloneDX SBOM, all published checksums, the macOS Arm64
-binary smoke test, and SLSA/CycloneDX attestations were separately verified as
-remote proof before the release was called available.
+The v0.2.0 local gates cover formatting, strict Clippy, locked tests, an 80%
+line and region floor for the offline product, RustSec and license audits,
+release contracts, real Mosquitto incident/passive/control E2E, the fixed
+1/2/5/10/50/100 fleet suite, and the 1/100 renderer contract. GitHub
+Actions, native archives, published checksums, attestations, and the release
+itself remain remote claims until the tagged workflow succeeds.
 
-No existing robot, simulator, planner, fleet manager, or customer trace is part
-of this repository.
+No external robot, third-party simulator, planner, fleet manager, customer
+trace, external DUT, or physical hardware result is part of this repository.
 
 ## 5. Initial user and job
 
@@ -1013,8 +1022,10 @@ raw events per second.
 - integration and security tests; and
 - pinned CI workflows.
 
-No active MQTT, Web, or physical-test file is planned before the Phase 4
-expansion decision.
+No general active MQTT, Web, external-DUT, or physical-test platform is planned
+before the Phase 4 expansion decision. ADR 0003 records the sole earlier
+exception: one isolated same-job synthetic reconnect demonstration, which does
+not count as product-usage evidence.
 
 ## 24. Risks and stop conditions
 
@@ -1088,11 +1099,15 @@ outcomes and has no separately approved plan.
 5. Completed: published and remotely verified the v0.1.2 Developer Preview
    after the append-only v0.1.0 and v0.1.1 tag release gates stopped before
    asset publication.
-6. Pending: recruit design partners and finalize trace intake.
-7. Pending: run the private incident pilot under the approved validation
+6. Completed locally: implement and validate the bounded Tier 1 reconnect demo,
+   passive/synthetic/control verdict matrix, preview media, and v0.2.0 release
+   contract without an external broker or physical DUT.
+7. Pending: publish and remotely verify the annotated v0.2.0 release.
+8. Pending: recruit design partners and finalize trace intake.
+9. Pending: run the private incident pilot under the approved validation
    protocol.
-8. Pending: decide whether the evidence justifies a public alpha.
-9. Pending: choose one post-alpha expansion through a new plan.
+10. Pending: decide whether the evidence justifies a public alpha.
+11. Pending: choose one post-alpha expansion through a new plan.
 
 Each checkpoint reports changed files, tests, exact results, unresolved
 assumptions, customer-data boundaries, and which claims remain unverified.
@@ -1108,6 +1123,11 @@ Preview with release artifacts and attestations.
 It does not authorize customer outreach, customer trace transfer, broker
 connection, message publication, external operational-system access,
 simulation, fault injection, or hardware operation.
+
+The user's subsequent 2026-08-07 implementation instruction narrowly
+authorizes the ADR 0003 Tier 1 virtual demonstration and its release media. It
+does not authorize a customer or external broker, external software DUT,
+generic active testing, a physical robot, or hardware operation.
 
 Phase 2 still requires explicit trace-handling approval and design-partner
 coordination. Public alpha, active MQTT, and physical testing retain separate

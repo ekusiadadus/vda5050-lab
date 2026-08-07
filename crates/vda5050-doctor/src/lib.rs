@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vda5050_core::{
-    ActorRole, Applicability, DiagnosticDomain, Evaluation, FindingSeverity, InvestigationTarget,
-    Verdict,
+    ActorRole, Applicability, CapturePoint, DiagnosticDomain, Evaluation, FindingSeverity,
+    InvestigationTarget, Verdict,
 };
 use vda5050_protocol::{ComparatorProfile, SemanticRelation, compare_orders};
 
@@ -22,7 +22,9 @@ pub struct TraceEvent {
     pub source_sequence: u64,
     pub topic: String,
     pub payload: Value,
+    pub capture_point: CapturePoint,
     pub observed_monotonic_ns: Option<u64>,
+    pub clock_domain: Option<String>,
     pub clock_epoch: String,
     pub actor_role: Option<ActorRole>,
     pub participant_id: Option<String>,
@@ -306,18 +308,21 @@ fn analyze_new_base_requests(
 }
 
 fn analyze_reconnect(context: &TraceContext, events: &[&TraceEvent], findings: &mut Vec<Finding>) {
-    for offline in events.iter().copied().filter(|event| {
+    for disconnected in events.iter().copied().filter(|event| {
         terminal_topic(&event.topic) == "connection"
             && event
                 .payload
                 .get("connectionState")
                 .and_then(Value::as_str)
-                .is_some_and(|state| state.eq_ignore_ascii_case("OFFLINE"))
+                .is_some_and(|state| {
+                    state.eq_ignore_ascii_case("OFFLINE")
+                        || state.eq_ignore_ascii_case("CONNECTION_BROKEN")
+                })
     }) {
         let online = events.iter().copied().any(|candidate| {
-            candidate.source_sequence > offline.source_sequence
+            candidate.source_sequence > disconnected.source_sequence
                 && terminal_topic(&candidate.topic) == "connection"
-                && same_known_participant(offline, candidate)
+                && same_known_participant(disconnected, candidate)
                 && candidate
                     .payload
                     .get("connectionState")
@@ -329,23 +334,23 @@ fn analyze_reconnect(context: &TraceContext, events: &[&TraceEvent], findings: &
         }
 
         let reconnect_proven = events.iter().copied().any(|candidate| {
-            candidate.source_sequence > offline.source_sequence
+            candidate.source_sequence > disconnected.source_sequence
                 && context.role_attribution_complete
                 && candidate.actor_role == Some(ActorRole::MobileRobot)
-                && same_known_participant(offline, candidate)
-                && different_known_connection_epoch(offline, candidate)
+                && same_known_participant(disconnected, candidate)
+                && different_known_connection_epoch(disconnected, candidate)
         });
         findings.push(gated_absence_sensitive_finding(
             context,
             &AbsenceFindingDraft {
                 rule_id: "LAB-D4-RECONNECT-STATE",
-                summary: "An OFFLINE connection state was not followed by ONLINE after a proved reconnect.",
+                summary: "A disconnected connection state was not followed by ONLINE after a proved reconnect.",
                 proved_target: InvestigationTarget::MobileRobot,
-                event: offline,
+                event: disconnected,
                 missing: "A rule-complete connection-topic capture covering the reconnect window.",
                 next_action: "Capture connection publications and connection epochs at broker ingress across disconnect and reconnect.",
                 precondition_proven: reconnect_proven,
-                missing_precondition: "Independent evidence of a new participant connection epoch after OFFLINE.",
+                missing_precondition: "Independent evidence of a new participant connection epoch after OFFLINE or CONNECTION_BROKEN.",
             },
         ));
     }
@@ -377,7 +382,7 @@ fn analyze_cancel_lifecycle(
             InvestigationTarget::MobileRobot,
             request,
             "State action lifecycle observations after the cancelOrder action.",
-            "Capture actionStates and order state until cancel completion or failure.",
+            "Capture instantActionStates and order state until cancel completion or failure.",
         ));
     }
 }
@@ -745,10 +750,10 @@ fn cancel_action_id(payload: &Value) -> Option<String> {
 }
 
 fn has_terminal_action_state(payload: &Value, action_id: &str) -> bool {
-    payload
-        .get("actionStates")
-        .and_then(Value::as_array)
-        .is_some_and(|states| {
+    ["actionStates", "instantActionStates"]
+        .into_iter()
+        .filter_map(|field| payload.get(field).and_then(Value::as_array))
+        .any(|states| {
             states.iter().any(|state| {
                 state.get("actionId").and_then(Value::as_str) == Some(action_id)
                     && state

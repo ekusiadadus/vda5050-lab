@@ -43,10 +43,26 @@ jobs:
         run: |
           set -euo pipefail
           "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
-          shellcheck scripts/verify-release-tag.sh scripts/normalize-cyclonedx.sh tests/release_contract.sh
+          shellcheck \
+            scripts/verify-release-tag.sh \
+            scripts/normalize-cyclonedx.sh \
+            scripts/verify-release-assets.sh \
+            scripts/render-demo-video.sh \
+            scripts/render-fleet-media.sh \
+            scripts/run-tier1-demo.sh \
+            scripts/run-tier1-fleet-suite.sh \
+            tests/release_contract.sh \
+            tests/fleet_media_contract.sh \
+            tests/fleet_release_contract.sh \
+            tests/tier1_demo_e2e.sh \
+            tests/tier1_demo_verdict_matrix.sh \
+            tests/tier1_multirobot_contract.sh \
+            tests/tier1_multirobot_e2e.sh
 
       - name: Verify release contracts
-        run: bash tests/release_contract.sh
+        run: |
+          bash tests/release_contract.sh
+          bash tests/fleet_release_contract.sh
 
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.1 --profile minimal --component clippy,rustfmt,llvm-tools-preview
@@ -60,11 +76,14 @@ jobs:
       - name: Run workspace tests
         run: cargo test --workspace --all-targets --locked
 
+      - name: Run isolated Tier 1 demo contracts
+        run: make demo-e2e
+
       - name: Install pinned coverage tool
         run: cargo install cargo-llvm-cov --version 0.8.7 --locked
 
       - name: Enforce line and region coverage floors
-        run: cargo llvm-cov --workspace --all-targets --fail-under-lines 80 --fail-under-regions 80
+        run: cargo llvm-cov --workspace --all-targets --exclude vda5050-demo --fail-under-lines 80 --fail-under-regions 80
 
       - name: Install pinned RustSec audit tool
         run: cargo install cargo-audit --version 0.22.2 --locked
@@ -77,3 +96,19 @@ jobs:
 
       - name: Enforce dependency policy
         run: cargo deny check
+
+  demo:
+    name: Isolated Tier 1 fleet E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify verdict matrix and all fixed fleet scales
+        run: |
+          make demo-e2e
+          make demo-fleet-e2e

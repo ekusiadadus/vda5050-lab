@@ -431,7 +431,12 @@ fn arrays_are_ordered_and_optional_omission_is_not_an_explicit_value() {
 
     let explicit_optional = json!({
         "manufacturer": "A", "serialNumber": "R1", "orderId": "O1",
-        "orderUpdateId": 1, "zoneSetId": "", "nodes": [{"nodeId":"n1"},{"nodeId":"n2"}], "edges": []
+        "orderUpdateId": 1,
+        "nodes": [
+            {"nodeId":"n1","nodePosition":{"x":0,"y":0,"mapId":"demo"}},
+            {"nodeId":"n2"}
+        ],
+        "edges": []
     });
     assert_eq!(
         compare_orders(&left, &explicit_optional, &default_profile())
@@ -464,6 +469,32 @@ fn free_text_and_unknown_extension_differences_are_unknown_by_default() {
             .semantic_relation,
         SemanticRelation::Unknown
     );
+}
+
+#[test]
+fn vda_300_descriptor_and_edge_limit_fields_are_classified_as_standard_content() {
+    let profile = ComparatorProfile::default_vda();
+    let first = json!({
+        "headerId": 1,
+        "timestamp": "2026-08-07T00:00:00Z",
+        "version": "3.0.0",
+        "manufacturer": "acme",
+        "serialNumber": "r1",
+        "orderId": "o1",
+        "orderUpdateId": 1,
+        "nodes": [
+            {"nodeId":"A","sequenceId":0,"released":true,"nodeDescriptor":"pick","actions":[]},
+            {"nodeId":"B","sequenceId":2,"released":true,"actions":[]}
+        ],
+        "edges": [
+            {"edgeId":"A-B","sequenceId":1,"released":true,"edgeDescriptor":"aisle","maximumSpeed":1.0,"actions":[]}
+        ]
+    });
+    let mut changed = first.clone();
+    changed["edges"][0]["maximumSpeed"] = json!(0.5);
+
+    let comparison = compare_orders(&first, &changed, &profile).unwrap();
+    assert_eq!(comparison.semantic_relation, SemanticRelation::Changed);
 }
 
 #[test]
@@ -518,30 +549,32 @@ fn comprehensive_order() -> serde_json::Value {
             "nodeId": "n1",
             "sequenceId": 0,
             "released": true,
-            "nodeDescription": "node",
+            "nodeDescriptor": "node",
             "nodePosition": {
                 "x": 1, "y": 2, "theta": 0, "mapId": "map",
-                "mapDescription": "map", "allowedDeviationXY": 0.1,
+                "allowedDeviationXY": {"a": 0.1, "b": 0.1, "theta": 0},
                 "allowedDeviationTheta": 0.2
             },
             "actions": [{
-                "actionType": "pick", "actionId": "a1", "actionDescription": "pick",
+                "actionType": "pick", "actionId": "a1", "actionDescriptor": "pick",
                 "blockingType": "HARD",
                 "actionParameters": [{"key": "load", "value": {"id": "L1"}}]
             }]
         }],
         "edges": [{
             "edgeId": "e1", "sequenceId": 1, "released": true,
-            "edgeDescription": "edge", "startNodeId": "n1", "endNodeId": "n2",
-            "maxSpeed": 1, "maxHeight": 2, "minHeight": 0,
+            "edgeDescriptor": "edge",
+            "maximumSpeed": 1, "maximumMobileRobotHeight": 2,
+            "minimumLoadHandlingDeviceHeight": 0,
             "orientation": 0, "orientationType": "GLOBAL", "direction": "FORWARD",
-            "rotationAllowed": true, "maxRotationSpeed": 1, "length": 3,
+            "reachOrientationBeforeEntering": true, "maxRotationSpeed": 1, "length": 3,
+            "corridor": {"leftWidth": 0.5, "rightWidth": 0.5},
             "trajectory": {
                 "degree": 1, "knotVector": [0, 0, 1, 1],
                 "controlPoints": [{"x": 1, "y": 2, "weight": 1}]
             },
             "actions": [{
-                "actionType": "signal", "actionId": "a2", "actionDescription": "signal",
+                "actionType": "signal", "actionId": "a2", "actionDescriptor": "signal",
                 "blockingType": "NONE", "actionParameters": [{"key": "color", "value": "blue"}]
             }]
         }]

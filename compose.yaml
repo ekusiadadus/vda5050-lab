@@ -1,0 +1,124 @@
+name: vda5050-tier1
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    restart: "no"
+    read_only: true
+    user: "1883:1883"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    mem_limit: 64m
+    cpus: 0.50
+    tmpfs:
+      - /tmp:size=1m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ./demo/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+        read_only: true
+    networks:
+      - tier1
+
+  demo:
+    image: vda5050-lab/tier1-demo:local
+    build:
+      context: .
+      dockerfile: demo/Dockerfile
+    command:
+      - --broker-host
+      - broker
+      - --broker-port
+      - "1883"
+      - --isolated-network
+      - --output-dir
+      - /artifacts
+      - --run-id
+      - ${VDA5050_DEMO_RUN_ID:?VDA5050_DEMO_RUN_ID must be set}
+      - --robot-count
+      - ${VDA5050_DEMO_ROBOT_COUNT:-1}
+      - --no-animation
+    depends_on:
+      broker:
+        condition: service_started
+    restart: "no"
+    read_only: true
+    user: ${VDA5050_DEMO_UID:-65532}:${VDA5050_DEMO_GID:-65532}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 2.00
+    tmpfs:
+      - /tmp:size=8m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ${VDA5050_DEMO_ARTIFACT_DIR:?VDA5050_DEMO_ARTIFACT_DIR must be set}
+        target: /artifacts
+    networks:
+      - tier1
+
+  demo-control:
+    extends:
+      service: demo
+    profiles:
+      - control
+    command:
+      - --broker-host
+      - broker
+      - --broker-port
+      - "1883"
+      - --isolated-network
+      - --output-dir
+      - /artifacts
+      - --run-id
+      - ${VDA5050_DEMO_RUN_ID:?VDA5050_DEMO_RUN_ID must be set}
+      - --robot-count
+      - ${VDA5050_DEMO_ROBOT_COUNT:-1}
+      - --no-animation
+      - --control-online-after-reconnect
+
+  doctor:
+    image: vda5050-lab/tier1-demo:local
+    entrypoint: ["/usr/local/bin/vda5050-doctor"]
+    command:
+      - diagnose
+      - /artifacts/trace.canonical.jsonl
+      - --vda-version
+      - 3.0.0
+      - --input-format
+      - canonical-jsonl
+      - --format
+      - json
+      - --synthetic-evidence-manifest
+      - /artifacts/synthetic-evidence.json
+    restart: "no"
+    read_only: true
+    user: ${VDA5050_DEMO_UID:-65532}:${VDA5050_DEMO_GID:-65532}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    mem_limit: 256m
+    cpus: 1.00
+    tmpfs:
+      - /tmp:size=8m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ${VDA5050_DEMO_ARTIFACT_DIR:?VDA5050_DEMO_ARTIFACT_DIR must be set}
+        target: /artifacts
+        read_only: true
+    network_mode: none
+
+networks:
+  tier1:
+    driver: bridge
+    internal: true
+    attachable: false

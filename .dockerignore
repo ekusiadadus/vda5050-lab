@@ -1,0 +1,13 @@
+.git
+.github
+target
+demo/artifacts
+captures
+reports
+.env
+.env.*
+*.key
+*.p12
+*.pcap
+*.pcapng
+*.pem

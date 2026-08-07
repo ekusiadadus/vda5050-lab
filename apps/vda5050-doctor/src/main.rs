@@ -3,10 +3,12 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
-use vda5050_core::{Inference, InferenceConfidence, Observation, Recommendation, ReportValidity};
-use vda5050_doctor_engine::{
-    CaptureCompleteness, DiagnosticReport, Finding, TraceContext, TraceEvent, analyze,
+use vda5050_core::{
+    Assertion, AssertionTrust, Inference, InferenceConfidence, Observation, Recommendation,
+    ReportValidity,
 };
+use vda5050_doctor::{load_synthetic_evidence_manifest, trace_context_with_synthetic_evidence};
+use vda5050_doctor_engine::{DiagnosticReport, Finding, analyze};
 use vda5050_import::{
     ImportConfig, ImportFormat, ImportReport, RecordKind, RejectReason, import_path,
 };
@@ -36,6 +38,8 @@ enum Command {
         input_format: InputFormatArg,
         #[arg(long, value_enum, default_value_t = OutputFormat::Terminal)]
         format: OutputFormat,
+        #[arg(long)]
+        synthetic_evidence_manifest: Option<PathBuf>,
         #[arg(long, default_value_t = 64 * 1024 * 1024)]
         max_file_bytes: u64,
         #[arg(long, default_value_t = 1_000_000)]
@@ -136,6 +140,7 @@ fn run(cli: Cli) -> Result<(), String> {
             vda_version,
             input_format,
             format,
+            synthetic_evidence_manifest,
             max_file_bytes,
             max_records,
             max_payload_bytes,
@@ -162,46 +167,27 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             let imported = import_path(&input, input_format.into(), config)
                 .map_err(|error| classify_import_error(&error.to_string()))?;
+            let evidence = synthetic_evidence_manifest
+                .as_deref()
+                .map(load_synthetic_evidence_manifest)
+                .transpose()
+                .map_err(|error| error.to_string())?;
             let validity = report_validity(&imported);
-            let context = trace_context(&imported);
+            let context = trace_context_with_synthetic_evidence(&imported, evidence.as_ref())
+                .map_err(|error| error.to_string())?;
             let diagnosed = analyze(&context);
 
             match format {
                 OutputFormat::Json => write_json(&vda_version, validity, &imported, &diagnosed),
-                OutputFormat::Terminal => {
-                    write_terminal(&vda_version, validity, &imported, &diagnosed)
-                }
+                OutputFormat::Terminal => write_terminal(
+                    &vda_version,
+                    validity,
+                    &imported,
+                    &diagnosed,
+                    evidence.is_some(),
+                ),
             }
         }
-    }
-}
-
-fn trace_context(imported: &ImportReport) -> TraceContext {
-    let events = imported
-        .records
-        .iter()
-        .filter_map(|record| {
-            let RecordKind::Message(message) = &record.kind else {
-                return None;
-            };
-            Some(TraceEvent {
-                event_id: record.event_id.clone(),
-                source_sequence: u64::try_from(record.location.record_index).unwrap_or(u64::MAX),
-                topic: message.topic.clone(),
-                payload: message.payload.clone(),
-                observed_monotonic_ns: None,
-                clock_epoch: "IMPORTED_UNKNOWN".to_owned(),
-                actor_role: None,
-                participant_id: None,
-                participant_connection_epoch: None,
-            })
-        })
-        .collect();
-    TraceContext {
-        events,
-        completeness: CaptureCompleteness::Unknown,
-        capture_closed: true,
-        role_attribution_complete: false,
     }
 }
 
@@ -267,6 +253,7 @@ fn write_terminal(
     validity: ReportValidity,
     imported: &ImportReport,
     diagnosed: &DiagnosticReport,
+    synthetic_evidence: bool,
 ) -> Result<(), String> {
     println!(
         "vda5050-doctor {} — VDA {vda_version} — build {}",
@@ -282,13 +269,16 @@ fn write_terminal(
         imported.summary.retained_bytes,
         imported.summary.retained_bytes_limit
     );
+    if synthetic_evidence {
+        println!("evidence=TIER1_SYNTHETIC_SAME_JOB (not production proof)");
+    }
     if diagnosed.findings.is_empty() {
         println!("No supported incident finding was produced from the supplied observations.");
         return Ok(());
     }
 
     for finding in &diagnosed.findings {
-        let incident = to_incident_report(finding, validity, imported);
+        let incident = to_incident_report(finding, validity, imported, synthetic_evidence);
         let limits = RenderLimits::new(16 * 1024, 2 * 1024)
             .map_err(|_| "invalid internal terminal limits".to_owned())?;
         let rendered = render_terminal(&incident, limits);
@@ -301,6 +291,7 @@ fn to_incident_report(
     finding: &Finding,
     validity: ReportValidity,
     imported: &ImportReport,
+    synthetic_evidence: bool,
 ) -> IncidentReport {
     let observation = Observation::new(
         format!("observation/{}", finding.rule_id),
@@ -359,6 +350,17 @@ fn to_incident_report(
         })
         .collect();
 
+    let assertions = if synthetic_evidence {
+        vec![Assertion::new(
+            "assertion/tier1-synthetic-run",
+            "Actor, participant, session epoch, and completeness mappings were supplied by the isolated same-job demo manifest.",
+            "vda5050-lab.synthetic-evidence/1",
+            AssertionTrust::Verified,
+        )]
+    } else {
+        Vec::new()
+    };
+
     IncidentReport::new(
         finding.rule_id.clone(),
         validity,
@@ -369,7 +371,7 @@ fn to_incident_report(
     )
     .with_evidence_layers(
         vec![observation],
-        Vec::new(),
+        assertions,
         vec![inference],
         recommendations,
     )

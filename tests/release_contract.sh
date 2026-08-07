@@ -3,31 +3,141 @@ set -euo pipefail
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 release_workflow="$repository_root/.github/workflows/release.yml"
+ci_workflow="$repository_root/.github/workflows/ci.yml"
 fixture_commit="0000000000000000000000000000000000000000"
+
+grep -Fq 'default: v0.2.0' "$release_workflow"
+grep -Fxq '/dist/' "$repository_root/.gitignore"
+grep -Fq 'scripts/verify-release-assets.sh' "$ci_workflow"
+grep -Fq 'scripts/render-demo-video.sh' "$ci_workflow"
+grep -Fq 'make demo-e2e' "$ci_workflow"
+grep -Fq 'make demo-e2e' "$release_workflow"
+grep -Fq 'make demo-fleet-e2e' "$ci_workflow"
+grep -Fq 'demo-fleet-e2e' "$repository_root/Makefile"
+for coverage_contract in "$repository_root/Makefile" "$ci_workflow" "$release_workflow"; do
+  grep -Fq -- '--all-targets --exclude vda5050-demo --fail-under-lines 80 --fail-under-regions 80' \
+    "$coverage_contract"
+done
 
 checkout_count="$(grep -c 'uses: actions/checkout@' "$release_workflow")"
 # shellcheck disable=SC2016
 explicit_ref_count="$(grep -c 'ref: ${{ env.RELEASE_SOURCE_REF }}' "$release_workflow")"
-test "$checkout_count" -eq 4
+test "$checkout_count" -eq 6
 test "$explicit_ref_count" -eq "$checkout_count"
 # shellcheck disable=SC2016
 grep -Fq 'RELEASE_SOURCE_REF: ${{ github.sha }}' "$release_workflow"
 # shellcheck disable=SC2016
 test "$(grep -c 'verify-release-tag.sh "$RELEASE_TAG" "$GITHUB_SHA" origin' "$release_workflow")" -eq 2
 # shellcheck disable=SC2016
-test "$(grep -c 'test "$source_commit" = "$GITHUB_SHA"' "$release_workflow")" -eq 2
+test "$(grep -c 'test "$source_commit" = "$GITHUB_SHA"' "$release_workflow")" -eq 3
 # shellcheck disable=SC2016
-if grep -Fq 'gh release create "$RELEASE_TAG" dist/*' "$release_workflow"; then
-  printf 'release publication still uses a wildcard payload\n' >&2
+if grep -Eq '^[[:space:]]+(pattern|path|subject-path): .*\*|gh release create .*\*' "$release_workflow"; then
+  printf 'release workflow still uses a wildcard artifact contract\n' >&2
   exit 1
 fi
 # shellcheck disable=SC2016
 grep -Fq 'gh release create "$RELEASE_TAG" "${assets[@]}"' "$release_workflow"
+grep -Fq 'name: release-demo' "$release_workflow"
+test "$(grep -c 'name: release-payload' "$release_workflow")" -eq 2
+# shellcheck disable=SC2016
+grep -Fq 'make demo-video RELEASE_TAG="$RELEASE_TAG"' "$release_workflow"
+# shellcheck disable=SC2016
+grep -Fq 'vda5050-fleet-overview-${RELEASE_TAG}.mp4' "$release_workflow"
+# shellcheck disable=SC2016
+grep -Fq 'bash scripts/verify-release-assets.sh media "$release_dir" "$RELEASE_TAG"' "$release_workflow"
+# shellcheck disable=SC2016
+grep -Fq 'bash scripts/verify-release-assets.sh assemble "$release_dir" "$RELEASE_TAG"' "$release_workflow"
+# shellcheck disable=SC2016
+grep -Fq 'bash scripts/verify-release-assets.sh verify "$release_dir" "$RELEASE_TAG"' "$release_workflow"
+
+cyclonedx_block="$(sed -n '/name: Create CycloneDX SBOM attestation/,/name: Create prerelease/p' "$release_workflow")"
+# shellcheck disable=SC2016
+test "$(grep -c 'vda5050-doctor-${{ env.RELEASE_TAG }}-.*\.tar\.gz' <<<"$cyclonedx_block")" -eq 4
+if grep -Fq 'vda5050-demo-' <<<"$cyclonedx_block"; then
+  printf 'demo video was incorrectly included in the binary CycloneDX attestation\n' >&2
+  exit 1
+fi
 normalizer_line="$(grep -n 'bash scripts/normalize-cyclonedx.sh' "$release_workflow" | cut -d: -f1)"
 upload_line="$(grep -n 'name: Upload SBOM' "$release_workflow" | cut -d: -f1)"
 attestation_line="$(grep -n 'name: Create CycloneDX SBOM attestation' "$release_workflow" | cut -d: -f1)"
 test "$normalizer_line" -lt "$upload_line"
 test "$upload_line" -lt "$attestation_line"
+
+asset_test_root="$(mktemp -d "${TMPDIR:-/tmp}/vda5050-release-assets.XXXXXX")"
+asset_release_tag="v9.9.9"
+asset_names=(
+  "vda5050-doctor-${asset_release_tag}-x86_64-unknown-linux-gnu.tar.gz"
+  "vda5050-doctor-${asset_release_tag}-aarch64-unknown-linux-gnu.tar.gz"
+  "vda5050-doctor-${asset_release_tag}-aarch64-apple-darwin.tar.gz"
+  "vda5050-doctor-${asset_release_tag}-x86_64-pc-windows-msvc.tar.gz"
+  "vda5050-doctor-${asset_release_tag}.cdx.json"
+)
+media_names=()
+for robot_count in 001 002 005 010 050 100; do
+  media_names+=(
+    "vda5050-fleet-${robot_count}-${asset_release_tag}.mp4"
+    "vda5050-fleet-${robot_count}-${asset_release_tag}.gif"
+  )
+done
+media_names+=(
+  "vda5050-fleet-overview-${asset_release_tag}.mp4"
+  "vda5050-fleet-overview-${asset_release_tag}.gif"
+)
+for media_name in "${media_names[@]}"; do
+  case "$media_name" in
+    *.mp4) printf '\x00\x00\x00\x18ftypisomfixture' > "$asset_test_root/$media_name" ;;
+    *.gif) printf 'GIF89afixture' > "$asset_test_root/$media_name" ;;
+  esac
+done
+bash "$repository_root/scripts/verify-release-assets.sh" media "$asset_test_root" "$asset_release_tag"
+for asset_name in "${asset_names[@]}"; do
+  printf 'fixture %s\n' "$asset_name" > "$asset_test_root/$asset_name"
+done
+bash "$repository_root/scripts/verify-release-assets.sh" assemble "$asset_test_root" "$asset_release_tag"
+test -f "$asset_test_root/SHA256SUMS"
+bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"
+
+printf 'unexpected\n' > "$asset_test_root/not-allowlisted.txt"
+if bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"; then
+  printf 'non-allowlisted release asset was accepted\n' >&2
+  exit 1
+fi
+rm "$asset_test_root/not-allowlisted.txt"
+
+printf 'tampered\n' >> "$asset_test_root/${asset_names[0]}"
+if bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"; then
+  printf 'checksum-mismatched release payload was accepted\n' >&2
+  exit 1
+fi
+rm "$asset_test_root/SHA256SUMS"
+bash "$repository_root/scripts/verify-release-assets.sh" assemble "$asset_test_root" "$asset_release_tag"
+
+invalid_media="${media_names[0]}"
+printf '0000xxxx-invalid-mp4\n' > "$asset_test_root/$invalid_media"
+if bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"; then
+  printf 'invalid MP4 signature was accepted\n' >&2
+  exit 1
+fi
+
+rm "$asset_test_root/$invalid_media"
+ln -s "${asset_names[0]}" "$asset_test_root/$invalid_media"
+if bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"; then
+  printf 'symlink demo asset was accepted\n' >&2
+  exit 1
+fi
+
+rm "$asset_test_root/$invalid_media"
+truncate -s 104857601 "$asset_test_root/$invalid_media"
+if bash "$repository_root/scripts/verify-release-assets.sh" verify "$asset_test_root" "$asset_release_tag"; then
+  printf 'oversized demo asset was accepted\n' >&2
+  exit 1
+fi
+
+if bash "$repository_root/scripts/verify-release-assets.sh" media "$asset_test_root" 'v9.9.9;unsafe'; then
+  printf 'unsafe release tag was accepted by asset verifier\n' >&2
+  exit 1
+fi
+rm -rf "$asset_test_root"
 
 test_root="$(mktemp -d "${TMPDIR:-/tmp}/vda5050-release-contract.XXXXXX")"
 trap 'rm -rf "$test_root"' EXIT

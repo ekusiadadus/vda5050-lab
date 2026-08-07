@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use vda5050_core::{ActorRole, Applicability, InvestigationTarget, Verdict};
+use vda5050_core::{ActorRole, Applicability, CapturePoint, InvestigationTarget, Verdict};
 use vda5050_doctor_engine::{
     CaptureCompleteness, ProtocolErrorLevel, TraceContext, TraceEvent, analyze,
 };
@@ -15,7 +15,9 @@ fn event(id: &str, sequence: u64, topic: &str, payload: Value) -> TraceEvent {
         source_sequence: sequence,
         topic: topic.to_owned(),
         payload,
+        capture_point: CapturePoint::PublisherAdapter,
         observed_monotonic_ns: Some(sequence * 1_000_000),
+        clock_domain: Some("test-clock".to_owned()),
         clock_epoch: "epoch-1".to_owned(),
         actor_role,
         participant_id: Some("acme/r1".to_owned()),
@@ -286,6 +288,36 @@ fn proved_new_connection_epoch_without_online_is_a_failure() {
 }
 
 #[test]
+fn connection_broken_then_new_epoch_without_online_is_a_failure() {
+    let broken = event(
+        "connection-1",
+        1,
+        "vda5050/v3/acme/r1/connection",
+        json!({"connectionState": "CONNECTION_BROKEN"}),
+    );
+    let mut after_reconnect = event(
+        "state-1",
+        2,
+        "vda5050/v3/acme/r1/state",
+        json!({"orderId": "o4", "orderUpdateId": 1}),
+    );
+    after_reconnect.participant_connection_epoch = Some("session-2".to_owned());
+
+    let report = analyze(&proved_context(vec![broken, after_reconnect]));
+    let finding = report
+        .findings
+        .iter()
+        .find(|finding| finding.rule_id == "LAB-D4-RECONNECT-STATE")
+        .expect("a proved reconnect after LWT without ONLINE violates the publication obligation");
+
+    assert_eq!(finding.evaluation.verdict(), Verdict::Fail);
+    assert_eq!(
+        finding.investigation_target,
+        InvestigationTarget::MobileRobot
+    );
+}
+
+#[test]
 fn cancel_without_action_lifecycle_is_inconclusive_without_absence_proof() {
     let cancel = event(
         "instant-1",
@@ -312,6 +344,40 @@ fn cancel_without_action_lifecycle_is_inconclusive_without_absence_proof() {
             .missing_evidence
             .iter()
             .any(|item| item.contains("action"))
+    );
+}
+
+#[test]
+fn cancel_terminal_state_is_read_from_vda_300_instant_action_states() {
+    let cancel = event(
+        "instant-1",
+        1,
+        "vda5050/v3/acme/r1/instantActions",
+        json!({
+            "actions": [{
+                "actionId": "cancel-1",
+                "actionType": "cancelOrder"
+            }]
+        }),
+    );
+    let finished = event(
+        "state-1",
+        2,
+        "vda5050/v3/acme/r1/state",
+        json!({
+            "instantActionStates": [{
+                "actionId": "cancel-1",
+                "actionStatus": "FINISHED"
+            }]
+        }),
+    );
+
+    let report = analyze(&proved_context(vec![cancel, finished]));
+    assert!(
+        report
+            .findings
+            .iter()
+            .all(|finding| finding.rule_id != "LAB-D5-CANCEL-LIFECYCLE")
     );
 }
 

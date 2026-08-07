@@ -1,5 +1,5 @@
 [package]
-name = "vda5050-report"
+name = "vda5050-demo"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,12 +10,16 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-hex.workspace = true
+clap.workspace = true
+rumqttc = { version = "0.25.1", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
-vda5050-core = { version = "0.2.0", path = "../vda5050-core" }
+hex.workspace = true
+vda5050-core = { version = "0.2.0", path = "../../crates/vda5050-core" }
+vda5050-doctor = { version = "0.2.0", path = "../vda5050-doctor" }
+vda5050-import = { version = "0.2.0", path = "../../crates/vda5050-import" }
 
 [lints]
 workspace = true

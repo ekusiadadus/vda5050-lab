@@ -1,47 +1,60 @@
-# Future Active VDA 5050 Testing Safety Design
+# Active VDA 5050 Testing Safety Design
 
-- Status: Deferred and unapproved
-- Design revision: 0.1
-- Research snapshot: 2026-08-06
-- Initial product dependency: None
-- Applies only after: validated offline product and separate implementation plan
+- Status: Tier 1 synthetic slice implemented; Tiers 2 and 3 deferred and unapproved
+- Design revision: 0.2
+- Research snapshot: 2026-08-07
+- Doctor dependency: None; `vda5050-doctor` remains offline
+- Current implementation scope: one isolated reconnect scenario with 1..=100 virtual mobile robots
 
 ## 1. Purpose
 
-This document preserves the safety and evidence requirements for a possible
-future active MQTT test harness without putting that work on the
-vda5050-doctor critical path.
+This document records both the narrow Tier 1 safety contract now implemented by
+`vda5050-demo` and the retained requirements for any later active harness. It
+keeps MQTT code and authority outside the `vda5050-doctor` execution path.
 
-It is not an implementation plan and does not authorize:
+The current authorization is limited to a disposable loopback broker, or the
+exact service name `broker` inside the supplied runner's validated internal
+network, with 1 through 100 virtual mobile robots, one fleet-control actor, one
+recorder, and the built-in reconnect scenario. The implementation may CONNECT,
+subscribe, publish, and deliberately crash the synthetic `demo-001` client only
+inside that boundary.
 
-- an MQTT CONNECT;
-- a subscription or publication;
-- a broker probe;
-- an active scenario;
-- fault injection;
-- a software DUT connection;
-- a physical robot connection; or
-- a hardware campaign.
+This document does not authorize:
 
-The offline CLI must not depend on this design or include dormant network
-features.
+- a customer, shared, routable, or production broker;
+- an external software DUT;
+- a physical robot or hardware campaign;
+- a generic fault bridge or user-defined active scenario;
+- Tier 2 or Tier 3 execution; or
+- treating same-job synthetic evidence as production evidence.
 
-## 2. Entry conditions
+The offline Doctor must not depend on this design or include a network code
+path. It consumes only explicitly selected local trace files and, optionally,
+a matching local synthetic evidence manifest.
 
-Active work may be proposed only when:
+## 2. Current approval and future entry conditions
 
-1. the offline private-pilot gate has passed;
-2. users identify an active test as a higher-value next step than additional
+The current Tier 1 approval covers only the code and local execution described
+in [DEMO.md](DEMO.md). It does not expand by analogy.
+
+Any broader Tier 1 feature, Tier 2 work, or Tier 3 work may be proposed only
+when:
+
+1. users identify the active test as a higher-value next step than additional
    offline diagnosis or import support;
-3. the exact target is stated: isolated virtual actor, external software DUT,
+2. the exact target is stated: isolated virtual actor, external software DUT,
    or physical DUT;
-4. an active threat and hazard assessment is reviewed;
-5. the issuer and runner trust boundaries are selected;
-6. the MQTT client and session contract is complete;
-7. an implementation and test plan is separately approved; and
-8. every external or physical execution receives its own approval.
+3. an active threat and hazard assessment is reviewed;
+4. the issuer and runner trust boundaries are selected;
+5. the MQTT client and session contract is complete;
+6. an implementation and test plan is separately approved; and
+7. every external or physical execution receives its own approval.
 
-Approval of the offline implementation plan does not satisfy these conditions.
+Approval of the Tier 1 reconnect demo does not satisfy these conditions.
+
+Unless a subsection explicitly describes the current Tier 1 reconnect demo,
+the capability, preflight, bridge, export, Tier 2, and Tier 3 requirements below
+are future gates, not claims about implemented behavior.
 
 ## 3. Safety principles
 
@@ -79,17 +92,45 @@ No capability may be upgraded from one tier to another.
 
 ### 5.1 Tier 1
 
-Automation may issue and consume an isolated-run capability only when the same
-job created:
+The implemented slice does not issue a reusable capability. It resolves and
+writes a run manifest before creating MQTT clients and accepts only:
 
-- the ephemeral broker;
-- the isolated network namespace;
-- all virtual actors;
-- the broker instance nonce; and
-- the teardown controller.
+- a loopback IP address;
+- `localhost`; or
+- the exact service name `broker` when `--isolated-network` is present.
 
-The capability cannot name a routable external address. A route or namespace
-proof failure aborts before MQTT CONNECT.
+Unspecified addresses, arbitrary hostnames, and routable IP addresses fail
+before MQTT CONNECT. When the binary is invoked directly,
+`--isolated-network` is only an operator assertion. The supported Compose runner
+adds machine checks before CONNECT: it validates the fully resolved internal
+bridge and fixed service command, then inspects the live network and verifies
+that the broker has no host port binding. This proves the tested Docker
+properties, not general broker identity or host egress isolation.
+
+The current run manifest records the robot count, coordinate system, every
+robot identity and route, exact ClientIds, exact topic and retain allowlists,
+the sole `demo-001` fault target, and these count-derived ceilings:
+
+```text
+messages         = 10 * robot_count + 16
+duration_seconds = 60
+actors           = robot_count + 2
+mqtt_connections = robot_count + 2
+```
+
+The message cap is enforced during capture. Fixed scenario steps have finite
+timeouts, and a run exceeding 60 seconds is rejected before evidence artifacts
+are finalized; the duration check is a validity gate, not an asynchronous
+emergency stop. Connection messages use QoS 1 and retained publication; order,
+state, and visualization messages use QoS 0 and are not retained.
+
+The published counts are 1, 2, 5, 10, 50, and 100. The 100-robot case is an
+isolated synthetic workload, not proof of physical fleet size, performance,
+interoperability, broker capacity, or production readiness.
+
+The ideal same-job capability described elsewhere in this document remains a
+future hardening requirement before Tier 1 can claim broker nonce, host-egress,
+general ownership, and reusable capability proof.
 
 ### 5.2 Tier 2
 
@@ -456,7 +497,7 @@ different evidence classes.
 
 ## 15. Evidence export if later approved
 
-No export feature is inherited from the offline alpha.
+No export feature is inherited from the offline Doctor.
 
 If active evidence export is proposed:
 
@@ -478,8 +519,8 @@ shape remains recognizable.
 
 ## 16. Security and supply chain
 
-- Active code is in separate crates and subcommands.
-- Offline binaries should be buildable without active features.
+- Active code is in the separate `vda5050-demo` workspace package.
+- The `vda5050-doctor` dependency graph excludes the MQTT client dependency.
 - Credentials use protected runtime references and never enter manifests or
   reports.
 - TLS verification is enabled for Tier 2 and 3.
@@ -559,6 +600,28 @@ mutation testing where the toolchain supports it.
 
 ## 18. Acceptance gates
 
+### Current Tier 1 reconnect demo
+
+- The only scenario uses 1..=100 virtual mobile robots. `demo-001` receives
+  `CONNECTION_BROKEN` and enters a new synthetic session that omits `ONLINE`;
+  other robots remain connected as non-fault background controls. The explicit
+  control variant publishes `ONLINE` for `demo-001` after reconnect.
+- The fixed scale suite is 1, 2, 5, 10, 50, and 100.
+- The broker target validator accepts loopback by default and the exact service
+  name `broker` only with an explicit isolated-network assertion.
+- The run emits a resolved run manifest, canonical trace, and trace-bound
+  synthetic evidence manifest.
+- Doctor without the manifest remains passive and returns D4 INCONCLUSIVE for
+  the fault trace.
+- Doctor with the matching same-job manifest can return D4 FAIL for the fault
+  trace and no D4 finding for the control trace.
+- Every result is labeled synthetic. It is not customer, production, external
+  DUT, physical, interoperability, or performance evidence.
+
+The current implementation does not yet satisfy the reusable capability,
+broker-nonce, and host-egress proofs required by the following future release
+gate.
+
 ### Isolated active alpha
 
 - Tier 1 only.
@@ -608,10 +671,16 @@ None may be silently chosen during coding.
 
 ## 20. Approval boundary
 
-This deferred design is preserved for review continuity only.
+The implemented approval boundary ends at the Tier 1 reconnect demo described
+in [DEMO.md](DEMO.md). Within it, `vda5050-demo` may use the declared virtual
+actors, up to 100 virtual mobile robots, and MQTT messages against a disposable
+loopback broker or the supplied Compose runner's validated internal `broker`
+service.
 
-It authorizes no code, dependency, broker, network, external system, active
-message, fault, simulation, customer environment, or physical operation.
+It authorizes no external broker, external system, customer environment,
+software DUT, physical operation, generic fault injection, or Tier 2/3
+capability. Direct use of `--isolated-network` is not independent proof of
+isolation, and the generated evidence manifest is not production proof.
 
-When product evidence justifies active testing, create a new implementation
-plan scoped to one tier and request explicit approval.
+Create a new implementation plan and request explicit approval before crossing
+that boundary.

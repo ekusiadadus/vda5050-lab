@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Release tag to validate without publishing
         required: true
-        default: v0.1.2
+        default: v0.2.0
 
 permissions: {}
 
@@ -58,11 +58,16 @@ jobs:
       - name: Run formatting, lint, and tests
         run: make fmt-check lint test
 
+      - name: Verify release and fleet media contracts
+        run: |
+          bash tests/release_contract.sh
+          bash tests/fleet_release_contract.sh
+
       - name: Install pinned coverage tool
         run: cargo install cargo-llvm-cov --version 0.8.7 --locked
 
       - name: Enforce line and region coverage floors
-        run: cargo llvm-cov --workspace --all-targets --fail-under-lines 80 --fail-under-regions 80
+        run: cargo llvm-cov --workspace --all-targets --exclude vda5050-demo --fail-under-lines 80 --fail-under-regions 80
 
       - name: Install pinned RustSec audit tool
         run: cargo install cargo-audit --version 0.22.2 --locked
@@ -162,7 +167,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-${{ matrix.target }}
-          path: dist/*.tar.gz
+          path: dist/vda5050-doctor-${{ env.RELEASE_TAG }}-${{ matrix.target }}.tar.gz
           if-no-files-found: error
           retention-days: 7
 
@@ -208,7 +213,74 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-sbom
-          path: dist/*.cdx.json
+          path: dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  demo:
+    name: Render fixed fleet media suite
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
+
+      - name: Resolve the checked-out source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(git rev-parse 'HEAD^{commit}')"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            test "$source_commit" = "$GITHUB_SHA"
+          fi
+
+      - name: Install video renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            ffmpeg \
+            fonts-dejavu-core \
+            imagemagick
+          ffmpeg -version | head -n 1
+          convert -version | head -n 1
+
+      - name: Verify renderer fixtures and render isolated fleet media
+        shell: bash
+        run: |
+          set -euo pipefail
+          make demo-e2e
+          bash tests/fleet_media_contract.sh
+          make demo-video RELEASE_TAG="$RELEASE_TAG"
+          release_dir="$GITHUB_WORKSPACE/dist"
+          bash scripts/verify-release-assets.sh media "$release_dir" "$RELEASE_TAG"
+
+      - name: Upload exact fleet media allowlist
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-demo
+          path: |
+            dist/vda5050-fleet-001-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-001-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-002-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-002-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-005-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-005-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-010-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-010-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-050-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-050-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-100-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-100-${{ env.RELEASE_TAG }}.gif
+            dist/vda5050-fleet-overview-${{ env.RELEASE_TAG }}.mp4
+            dist/vda5050-fleet-overview-${{ env.RELEASE_TAG }}.gif
           if-no-files-found: error
           retention-days: 7
 
@@ -217,39 +289,61 @@ jobs:
     needs:
       - build
       - sbom
+      - demo
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       actions: read
       contents: read
     steps:
-      - name: Download release artifacts
+      - name: Check out release contract
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_SOURCE_REF }}
+
+      - name: Download Linux x86_64 archive
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: release-*
+          name: release-x86_64-unknown-linux-gnu
           path: ${{ runner.temp }}/release-dist
-          merge-multiple: true
+
+      - name: Download Linux aarch64 archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-aarch64-unknown-linux-gnu
+          path: ${{ runner.temp }}/release-dist
+
+      - name: Download macOS aarch64 archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-aarch64-apple-darwin
+          path: ${{ runner.temp }}/release-dist
+
+      - name: Download Windows x86_64 archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-x86_64-pc-windows-msvc
+          path: ${{ runner.temp }}/release-dist
+
+      - name: Download SBOM
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-sbom
+          path: ${{ runner.temp }}/release-dist
+
+      - name: Download demo video
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-demo
+          path: ${{ runner.temp }}/release-dist
 
       - name: Generate and verify checksums
         shell: bash
         run: |
           set -euo pipefail
           release_dir="$RUNNER_TEMP/release-dist"
-          expected=(
-            "vda5050-doctor-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-aarch64-unknown-linux-gnu.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}.cdx.json"
-          )
-          test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#expected[@]}"
-          for name in "${expected[@]}"; do
-            test -f "$release_dir/$name"
-            test ! -L "$release_dir/$name"
-          done
-          cd "$release_dir"
-          sha256sum "${expected[@]}" > SHA256SUMS
-          sha256sum --check SHA256SUMS
+          bash scripts/verify-release-assets.sh assemble "$release_dir" "$RELEASE_TAG"
 
       - name: Validate attestation compatibility
         shell: bash
@@ -261,6 +355,34 @@ jobs:
             (.serialNumber | length) > 0 and
             (.specVersion | type) == "string"
           ' "$RUNNER_TEMP/release-dist/vda5050-doctor-${RELEASE_TAG}.cdx.json" >/dev/null
+
+      - name: Upload assembled release payload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-payload
+          path: |
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-x86_64-pc-windows-msvc.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
+            ${{ runner.temp }}/release-dist/vda5050-fleet-001-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-001-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-002-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-002-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-005-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-005-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-010-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-010-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-050-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-050-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-100-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-100-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/vda5050-fleet-overview-${{ env.RELEASE_TAG }}.mp4
+            ${{ runner.temp }}/release-dist/vda5050-fleet-overview-${{ env.RELEASE_TAG }}.gif
+            ${{ runner.temp }}/release-dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
 
   publish:
     name: Attest and publish Developer Preview
@@ -289,33 +411,18 @@ jobs:
           set -euo pipefail
           bash scripts/verify-release-tag.sh "$RELEASE_TAG" "$GITHUB_SHA" origin
 
-      - name: Download release artifacts
+      - name: Download assembled release payload
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: release-*
+          name: release-payload
           path: ${{ runner.temp }}/release-dist
-          merge-multiple: true
 
-      - name: Generate and verify checksums
+      - name: Verify the immutable payload allowlist and checksums
         shell: bash
         run: |
           set -euo pipefail
           release_dir="$RUNNER_TEMP/release-dist"
-          expected=(
-            "vda5050-doctor-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-aarch64-unknown-linux-gnu.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
-            "vda5050-doctor-${RELEASE_TAG}.cdx.json"
-          )
-          test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#expected[@]}"
-          for name in "${expected[@]}"; do
-            test -f "$release_dir/$name"
-            test ! -L "$release_dir/$name"
-          done
-          cd "$release_dir"
-          sha256sum "${expected[@]}" > SHA256SUMS
-          sha256sum --check SHA256SUMS
+          bash scripts/verify-release-assets.sh verify "$release_dir" "$RELEASE_TAG"
 
       - name: Create SLSA build-provenance attestation
         uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
@@ -325,7 +432,11 @@ jobs:
       - name: Create CycloneDX SBOM attestation
         uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
         with:
-          subject-path: ${{ runner.temp }}/release-dist/*.tar.gz
+          subject-path: |
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-aarch64-unknown-linux-gnu.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
+            ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}-x86_64-pc-windows-msvc.tar.gz
           sbom-path: ${{ runner.temp }}/release-dist/vda5050-doctor-${{ env.RELEASE_TAG }}.cdx.json
 
       - name: Create prerelease
@@ -342,6 +453,20 @@ jobs:
             "$release_dir/vda5050-doctor-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz"
             "$release_dir/vda5050-doctor-${RELEASE_TAG}-x86_64-pc-windows-msvc.tar.gz"
             "$release_dir/vda5050-doctor-${RELEASE_TAG}.cdx.json"
+            "$release_dir/vda5050-fleet-001-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-001-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-002-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-002-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-005-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-005-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-010-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-010-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-050-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-050-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-100-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-100-${RELEASE_TAG}.gif"
+            "$release_dir/vda5050-fleet-overview-${RELEASE_TAG}.mp4"
+            "$release_dir/vda5050-fleet-overview-${RELEASE_TAG}.gif"
             "$release_dir/SHA256SUMS"
           )
           test "$(find "$release_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq "${#assets[@]}"

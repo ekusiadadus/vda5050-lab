@@ -1,21 +1,39 @@
 use std::fs;
-use std::path::PathBuf;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use tempfile::{Builder, TempDir};
 
-fn temp_file(name: &str, contents: &str) -> PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock should be after epoch")
-        .as_nanos();
-    let directory = std::env::temp_dir().join(format!(
-        "vda5050-doctor-test-{}-{nonce}",
-        std::process::id()
-    ));
-    fs::create_dir_all(&directory).expect("temporary directory should be created");
-    let path = directory.join(name);
+struct TestFile {
+    _directory: TempDir,
+    path: PathBuf,
+}
+
+impl Deref for TestFile {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        &self.path
+    }
+}
+
+impl AsRef<Path> for TestFile {
+    fn as_ref(&self) -> &Path {
+        &self.path
+    }
+}
+
+fn temp_file(name: &str, contents: &str) -> TestFile {
+    let directory = Builder::new()
+        .prefix("vda5050-doctor-test-")
+        .tempdir()
+        .expect("atomically unique temporary directory should be created");
+    let path = directory.path().join(name);
     fs::write(&path, contents).expect("fixture should be written");
-    path
+    TestFile {
+        _directory: directory,
+        path,
+    }
 }
 
 fn binary() -> Command {
@@ -60,7 +78,7 @@ fn diagnose_jsonl_emits_canonical_json_with_changed_order_finding() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(report["tool"], "vda5050-doctor");
-    assert_eq!(report["tool_version"], "0.1.2");
+    assert_eq!(report["tool_version"], "0.2.0");
     assert!(
         report["build"]["dependency_lock_sha256"]
             .as_str()
@@ -103,7 +121,7 @@ fn version_reports_the_release_semver() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        "vda5050-doctor 0.1.2"
+        "vda5050-doctor 0.2.0"
     );
     assert!(output.stderr.is_empty());
 }

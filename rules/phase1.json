@@ -277,7 +277,7 @@
         "that wall-clock elapsed time proves a deadline"
       ],
       "implementation_status": "IMPLEMENTED_GUARDED",
-      "implementation_guard": "The engine requires the same known participant and a changed, non-empty participant connection epoch after OFFLINE. Without independent reconnect evidence, the verdict remains INCONCLUSIVE."
+      "implementation_guard": "The engine requires the same known participant and a changed, non-empty participant connection epoch after OFFLINE or CONNECTION_BROKEN. Without independent reconnect evidence, the verdict remains INCONCLUSIVE."
     },
     {
       "rule_id": "LAB-D5-CANCEL-LIFECYCLE",
@@ -295,7 +295,7 @@
         "required_observations": [
           "a cancelOrder instant action whose publisher is attributed to fleet control",
           "the cancel actionId is parseable",
-          "the capture contains the mobile-robot actionStates through completion or failure",
+          "the VDA 5050 3.0 capture contains the mobile-robot instantActionStates through completion or failure",
           "trusted actor mapping proves the state publisher is the mobile robot"
         ]
       },

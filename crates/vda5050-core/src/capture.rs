@@ -281,6 +281,21 @@ impl MessageObserved {
     }
 
     #[must_use]
+    pub const fn observed_monotonic_ns(&self) -> Option<u64> {
+        self.observed_monotonic_ns
+    }
+
+    #[must_use]
+    pub fn clock_domain(&self) -> Option<&str> {
+        self.clock_domain.as_deref()
+    }
+
+    #[must_use]
+    pub fn clock_epoch(&self) -> Option<&str> {
+        self.clock_epoch.as_deref()
+    }
+
+    #[must_use]
     pub fn payload(&self) -> &PayloadReference {
         &self.payload
     }

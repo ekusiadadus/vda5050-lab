@@ -439,6 +439,9 @@ fn is_known_order_path(path: &str) -> bool {
         [field] => is_order_field(field),
         ["nodes", index, field] if is_index(index) => is_node_field(field),
         ["nodes", index, "nodePosition", field] if is_index(index) => is_node_position_field(field),
+        ["nodes", index, "nodePosition", "allowedDeviationXY", field] if is_index(index) => {
+            matches!(*field, "a" | "b" | "theta")
+        }
         ["nodes", node_index, "actions", action_index, field]
             if is_index(node_index) && is_index(action_index) =>
         {
@@ -457,6 +460,7 @@ fn is_known_order_path(path: &str) -> bool {
         }
         ["edges", index, field] if is_index(index) => is_edge_field(field),
         ["edges", index, "trajectory", field] if is_index(index) => is_trajectory_field(field),
+        ["edges", index, "corridor", field] if is_index(index) => is_corridor_field(field),
         [
             "edges",
             edge_index,
@@ -515,7 +519,6 @@ fn is_order_field(field: &str) -> bool {
             | "serialNumber"
             | "orderId"
             | "orderUpdateId"
-            | "zoneSetId"
             | "nodes"
             | "edges"
     )
@@ -524,19 +527,14 @@ fn is_order_field(field: &str) -> bool {
 fn is_node_field(field: &str) -> bool {
     matches!(
         field,
-        "nodeId" | "sequenceId" | "released" | "nodeDescription" | "nodePosition" | "actions"
+        "nodeId" | "sequenceId" | "released" | "nodeDescriptor" | "nodePosition" | "actions"
     )
 }
 
 fn is_node_position_field(field: &str) -> bool {
     matches!(
         field,
-        "x" | "y"
-            | "theta"
-            | "mapId"
-            | "mapDescription"
-            | "allowedDeviationXY"
-            | "allowedDeviationTheta"
+        "x" | "y" | "theta" | "mapId" | "allowedDeviationXY" | "allowedDeviationTheta"
     )
 }
 
@@ -546,19 +544,18 @@ fn is_edge_field(field: &str) -> bool {
         "edgeId"
             | "sequenceId"
             | "released"
-            | "edgeDescription"
-            | "startNodeId"
-            | "endNodeId"
-            | "maxSpeed"
-            | "maxHeight"
-            | "minHeight"
+            | "edgeDescriptor"
+            | "maximumSpeed"
+            | "maximumMobileRobotHeight"
+            | "minimumLoadHandlingDeviceHeight"
             | "orientation"
             | "orientationType"
             | "direction"
-            | "rotationAllowed"
+            | "reachOrientationBeforeEntering"
             | "maxRotationSpeed"
             | "length"
             | "trajectory"
+            | "corridor"
             | "actions"
     )
 }
@@ -571,10 +568,26 @@ fn is_control_point_field(field: &str) -> bool {
     matches!(field, "x" | "y" | "weight")
 }
 
+fn is_corridor_field(field: &str) -> bool {
+    matches!(
+        field,
+        "leftWidth"
+            | "rightWidth"
+            | "corridorReferencePoint"
+            | "releaseRequired"
+            | "releaseLossBehavior"
+    )
+}
+
 fn is_action_field(field: &str) -> bool {
     matches!(
         field,
-        "actionType" | "actionId" | "actionDescription" | "blockingType" | "actionParameters"
+        "actionType"
+            | "actionId"
+            | "actionDescriptor"
+            | "blockingType"
+            | "actionParameters"
+            | "retriable"
     )
 }
 
