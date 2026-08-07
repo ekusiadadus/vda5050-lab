@@ -1,0 +1,202 @@
+name: vda5050-live
+
+x-live-process: &live-process
+  image: vda5050-lab/live-demo:local
+  build:
+    context: .
+    dockerfile: demo/Dockerfile
+  restart: "no"
+  read_only: true
+  user: ${VDA5050_LIVE_UID:-65532}:${VDA5050_LIVE_GID:-65532}
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 64
+  mem_limit: 256m
+  cpus: 1.00
+  tmpfs:
+    - /tmp:size=8m,mode=1777,noexec,nosuid,nodev
+
+x-artifact-write: &artifact-write
+  type: bind
+  source: ${VDA5050_LIVE_ARTIFACT_DIR:?VDA5050_LIVE_ARTIFACT_DIR must be set}
+  target: /artifacts
+
+x-artifact-read: &artifact-read
+  type: bind
+  source: ${VDA5050_LIVE_ARTIFACT_DIR:?VDA5050_LIVE_ARTIFACT_DIR must be set}
+  target: /artifacts
+  read_only: true
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    restart: "no"
+    read_only: true
+    user: "1883:1883"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    mem_limit: 64m
+    cpus: 0.50
+    tmpfs:
+      - /tmp:size=1m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ./demo/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+        read_only: true
+    networks:
+      - tier1
+
+  live_plan:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-live-plan"]
+    command:
+      - --output-dir
+      - /artifacts
+      - --run-id
+      - ${VDA5050_LIVE_RUN_ID:?VDA5050_LIVE_RUN_ID must be set}
+      - --scenario
+      - ${VDA5050_LIVE_SCENARIO:-fault}
+    volumes:
+      - *artifact-write
+    network_mode: none
+
+  recorder:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-trace-recorder"]
+    volumes:
+      - *artifact-write
+    networks:
+      - tier1
+
+  robot_sim:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-robot-sim"]
+    command: ["--tick-delay-ms", "50"]
+    volumes:
+      - *artifact-write
+    networks:
+      - tier1
+
+  fleet_actor:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-fleet-actor"]
+    volumes:
+      - *artifact-read
+    networks:
+      - tier1
+
+  doctor_passive:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-doctor"]
+    command:
+      - diagnose
+      - /artifacts/trace.canonical.jsonl
+      - --vda-version
+      - 3.0.0
+      - --input-format
+      - canonical-jsonl
+      - --format
+      - json
+    volumes:
+      - *artifact-read
+    network_mode: none
+
+  doctor_evidence:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-doctor"]
+    command:
+      - diagnose
+      - /artifacts/trace.canonical.jsonl
+      - --vda-version
+      - 3.0.0
+      - --input-format
+      - canonical-jsonl
+      - --format
+      - json
+      - --synthetic-evidence-manifest
+      - /artifacts/synthetic-evidence.json
+    volumes:
+      - *artifact-read
+    network_mode: none
+
+  web_gateway:
+    <<: *live-process
+    entrypoint: ["/usr/local/bin/vda5050-web-gateway"]
+    command: ["--artifact-dir", "/artifacts", "--static-dir", "/web"]
+    volumes:
+      - *artifact-read
+    ports:
+      - target: 8080
+        published: ${VDA5050_LIVE_WEB_PORT:-8080}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - cockpit
+    profiles:
+      - cockpit
+
+  browser_test:
+    image: vda5050-lab/live-browser-test:local
+    build:
+      context: .
+      dockerfile: demo/Dockerfile
+      target: browser-test
+    environment:
+      PLAYWRIGHT_BASE_URL: http://web_gateway:8080
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 2.00
+    tmpfs:
+      - /tmp:size=128m,mode=1777,nosuid,nodev
+    networks:
+      - cockpit
+    profiles:
+      - browser-test
+
+  browser_recorder:
+    image: vda5050-lab/live-browser-test:local
+    entrypoint: ["node", "e2e/record-demo.mjs"]
+    environment:
+      PLAYWRIGHT_BASE_URL: http://web_gateway:8080
+      VDA5050_LIVE_RECORD_PATH: /output/live-demo.webm
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 2.00
+    tmpfs:
+      - /tmp:size=256m,mode=1777,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ${VDA5050_LIVE_MEDIA_DIR:-/tmp/vda5050-live-media}
+        target: /output
+    networks:
+      - cockpit
+    profiles:
+      - browser-record
+
+networks:
+  tier1:
+    driver: bridge
+    internal: true
+    attachable: false
+  cockpit:
+    driver: bridge
+    attachable: false

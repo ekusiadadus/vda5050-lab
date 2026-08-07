@@ -8,6 +8,7 @@ members = [
   "crates/vda5050-local-fs",
   "crates/vda5050-protocol",
   "crates/vda5050-report",
+  "crates/vda5050-sim-core",
 ]
 resolver = "3"
 

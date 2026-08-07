@@ -14,9 +14,40 @@ pub const MAX_ROBOT_COUNT: usize = 100;
 pub const MESSAGE_BUDGET: usize = 26;
 pub const DURATION_BUDGET_SECONDS: u64 = 60;
 
+mod interactive;
 mod live;
+mod live_artifacts;
+mod live_capture;
+mod live_mqtt;
+mod live_protocol;
+mod live_web;
+mod lsmart;
+mod simulation;
 
+pub use interactive::{
+    LIVE_MESSAGE_LIMIT, LiveEvent, LiveHardLimits, LivePhase, LivePlanError, LivePoint,
+    LiveRobotPlan, LiveRunPlan, LiveScenario, LiveSimSnapshot,
+};
 pub use live::{RunArtifacts, RunOptions, run_live};
+pub use live_artifacts::{
+    LiveArtifactError, LiveEventWriter, read_live_plan, write_live_plan, write_new_artifact,
+};
+pub use live_capture::{
+    LiveCaptureArtifacts, LiveCaptureBuildError, LiveCapturedPublish, build_live_capture_artifacts,
+    build_lsmart_capture_artifacts,
+};
+pub use live_mqtt::{IncomingPublish, LiveMqttClient, LiveMqttError};
+pub use live_protocol::{
+    build_live_connection, build_live_order, build_live_state, build_live_visualization,
+};
+pub use live_web::{LiveWebError, LiveWebStore, WebBody, WebResponse};
+pub use lsmart::{
+    LsmartAction, LsmartActionBatch, LsmartActionKind, LsmartError, LsmartExecutionGate,
+    LsmartPose, LsmartRobot, LsmartRunPlan, build_lsmart_connection, build_lsmart_delivery,
+    build_lsmart_order, build_lsmart_state, build_lsmart_visualization, parse_lsmart_action_batch,
+    validate_lsmart_delivered_order,
+};
+pub use simulation::{DemoSimulationError, sample_wire_positions, simulate_robot_route};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

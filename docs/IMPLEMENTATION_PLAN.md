@@ -1,13 +1,13 @@
 # vda5050-lab Implementation Plan
 
-- Status: Phase 1 and bounded Tier 1 demo implemented; v0.2.0 release candidate
-- Plan version: 0.8
-- Supersedes: published-preview revision 0.7
+- Status: Phase 1 plus bounded synthetic, live, and official LSMART Tier 1 demos implemented locally
+- Plan version: 1.0
+- Supersedes: release-candidate revision 0.8
 - Research snapshot: 2026-08-07
 - Target repository: vda5050-lab
 - Initial executable: vda5050-doctor
-- Product implementation state: Offline Doctor plus synthetic demonstration
-- Initial operating mode: Doctor offline; optional isolated Tier 1 demo
+- Product implementation state: Offline Doctor plus bounded synthetic demonstrations
+- Initial operating mode: Doctor offline; optional isolated scale or live Tier 1 demo
 
 ## 1. Executive decision
 
@@ -92,11 +92,16 @@ The following general platform work leaves the initial critical path:
 - general multi-capture partial-order reconstruction; and
 - broad syntax coverage unrelated to the first incident families.
 
-One narrow exception is implemented for demonstration and contributor
-onboarding: the isolated Tier 1 reconnect scenario in
-[ADR 0003](adr/0003-isolated-tier1-reconnect-demo.md). It uses only same-job
-virtual actors and does not satisfy, bypass, or weaken the product-validation
-gate. All broader active designs are retained in
+Two bounded presentations of one narrow exception are implemented for
+demonstration and contributor onboarding: the isolated Tier 1 reconnect
+scenario in [ADR 0003](adr/0003-isolated-tier1-reconnect-demo.md), its scale
+suite in [ADR 0004](adr/0004-multi-agv-xy-demo.md), and its deterministic live
+simulator/cockpit in
+[ADR 0005](adr/0005-deterministic-live-simulator-cockpit.md), and the optional
+official LSMART causal integration in
+[ADR 0006](adr/0006-official-lsmart-causal-bridge.md). They use only
+same-job virtual actors and do not satisfy, bypass, or weaken the
+product-validation gate. All broader active designs are retained in
 [FUTURE_ACTIVE_TESTING.md](FUTURE_ACTIVE_TESTING.md), where Tier 2, Tier 3,
 external DUT, generic fault, and physical work remain unapproved.
 
@@ -122,10 +127,11 @@ This revision also corrects the remaining review blockers:
 
 ## 4. Current repository state
 
-The repository contains the Rust workspace, offline Doctor CLI, six library
-crates, a separate bounded demo binary, locked dependencies, rule and source
-manifests, synthetic fixtures, an internal-only Compose topology, CI and release
-workflows, community files, and release documentation. The `v0.2.0` release
+The repository contains the Rust workspace, offline Doctor CLI, seven library
+crates, bounded actor/simulator/recorder/Web executables, locked Rust and Web
+dependencies, rule and source manifests, synthetic fixtures, isolated Compose
+topologies, CI and release workflows, community files, and release
+documentation. The `v0.2.0` release
 contract produces four native Doctor archives, a binary-scoped CycloneDX SBOM,
 twelve per-scale MP4/GIF files, two fleet-overview media files,
 `SHA256SUMS`, and Sigstore-backed GitHub attestations: exactly twenty release
@@ -139,8 +145,16 @@ release contracts, real Mosquitto incident/passive/control E2E, the fixed
 Actions, native archives, published checksums, attestations, and the release
 itself remain remote claims until the tagged workflow succeeds.
 
-No external robot, third-party simulator, planner, fleet manager, customer
-trace, external DUT, or physical hardware result is part of this repository.
+The post-v0.2.0 live demo adds deterministic fixed-step motion, two independent
+robot MQTT clients, a separate Fleet Control actor and recorder, an artifact-only
+localhost cockpit, UI model coverage, and a real Mosquitto E2E. It is locally
+implemented but is not part of the already defined v0.2.0 release-asset contract.
+
+The optional official LSMART path integrates a pinned third-party planner and
+ARGoS simulator as synthetic trace producers. It does not establish general
+third-party interoperability. No external robot, customer fleet manager,
+customer trace, external DUT, or physical hardware result is part of this
+repository.
 
 ## 5. Initial user and job
 
@@ -1102,12 +1116,15 @@ outcomes and has no separately approved plan.
 6. Completed locally: implement and validate the bounded Tier 1 reconnect demo,
    passive/synthetic/control verdict matrix, preview media, and v0.2.0 release
    contract without an external broker or physical DUT.
-7. Pending: publish and remotely verify the annotated v0.2.0 release.
-8. Pending: recruit design partners and finalize trace intake.
-9. Pending: run the private incident pilot under the approved validation
+7. Completed locally: implement the deterministic two-robot simulator,
+   split-process MQTT workflow, read-only cockpit, passive/evidence comparison,
+   and headless real-Mosquitto E2E under ADR 0005.
+8. Pending: decide the next release version and media contract for the live demo.
+9. Pending: recruit design partners and finalize trace intake.
+10. Pending: run the private incident pilot under the approved validation
    protocol.
-10. Pending: decide whether the evidence justifies a public alpha.
-11. Pending: choose one post-alpha expansion through a new plan.
+11. Pending: decide whether the evidence justifies a public alpha.
+12. Pending: choose one post-alpha expansion through a new plan.
 
 Each checkpoint reports changed files, tests, exact results, unresolved
 assumptions, customer-data boundaries, and which claims remain unverified.
@@ -1124,11 +1141,13 @@ It does not authorize customer outreach, customer trace transfer, broker
 connection, message publication, external operational-system access,
 simulation, fault injection, or hardware operation.
 
-The user's subsequent 2026-08-07 implementation instruction narrowly
-authorizes the ADR 0003 Tier 1 virtual demonstration and its release media. It
-does not authorize a customer or external broker, external software DUT,
-generic active testing, a physical robot, or hardware operation.
+The user's subsequent 2026-08-07 implementation instructions narrowly
+authorize the ADR 0003/0004 Tier 1 virtual demonstration and release media, and
+the ADR 0005 deterministic two-robot live simulator/cockpit on the supplied
+disposable internal broker. They do not authorize a customer or external
+broker, external software DUT, generic active testing, a physical robot, or
+hardware operation.
 
 Phase 2 still requires explicit trace-handling approval and design-partner
-coordination. Public alpha, active MQTT, and physical testing retain separate
-approval gates.
+coordination. Public alpha, any active MQTT outside the supplied isolated Tier
+1 jobs, and physical testing retain separate approval gates.

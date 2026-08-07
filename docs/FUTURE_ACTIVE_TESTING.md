@@ -1,10 +1,10 @@
 # Active VDA 5050 Testing Safety Design
 
-- Status: Tier 1 synthetic slice implemented; Tiers 2 and 3 deferred and unapproved
-- Design revision: 0.2
+- Status: Tier 1 scale, live, and official LSMART synthetic slices implemented; Tiers 2 and 3 deferred and unapproved
+- Design revision: 0.4
 - Research snapshot: 2026-08-07
 - Doctor dependency: None; `vda5050-doctor` remains offline
-- Current implementation scope: one isolated reconnect scenario with 1..=100 virtual mobile robots
+- Current implementation scope: one isolated reconnect scenario in scale, two-robot live, and official LSMART/ARGoS presentations
 
 ## 1. Purpose
 
@@ -14,10 +14,11 @@ keeps MQTT code and authority outside the `vda5050-doctor` execution path.
 
 The current authorization is limited to a disposable loopback broker, or the
 exact service name `broker` inside the supplied runner's validated internal
-network, with 1 through 100 virtual mobile robots, one fleet-control actor, one
-recorder, and the built-in reconnect scenario. The implementation may CONNECT,
-subscribe, publish, and deliberately crash the synthetic `demo-001` client only
-inside that boundary.
+network, with either 1 through 100 built-in virtual mobile robots or the ten
+pinned official LSMART/ARGoS actors, one fleet-control bridge, one recorder,
+and the built-in reconnect scenario. The implementation may CONNECT,
+subscribe, publish, and deliberately crash only its synthetic fault-target
+client inside that boundary.
 
 This document does not authorize:
 
@@ -35,7 +36,9 @@ a matching local synthetic evidence manifest.
 ## 2. Current approval and future entry conditions
 
 The current Tier 1 approval covers only the code and local execution described
-in [DEMO.md](DEMO.md). It does not expand by analogy.
+in [DEMO.md](DEMO.md), [LIVE_DEMO.md](LIVE_DEMO.md),
+[LSMART_DEMO.md](LSMART_DEMO.md), and ADRs 0003 through 0006. It does not
+expand by analogy.
 
 Any broader Tier 1 feature, Tier 2 work, or Tier 3 work may be proposed only
 when:
@@ -618,6 +621,15 @@ mutation testing where the toolchain supports it.
 - Every result is labeled synthetic. It is not customer, production, external
   DUT, physical, interoperability, or performance evidence.
 
+The ADR 0005 live presentation uses the same incident family with exactly two
+robots and adds fixed-step kinematics, separate Fleet Control/robot/recorder
+processes, and an artifact-only localhost cockpit. Its simulator and UI streams
+are explicitly non-evidentiary. Its MQTT actors remain on the internal Tier 1
+network; Doctor remains network-disabled; the Web gateway is not on the MQTT
+network and receives only a read-only artifact mount. This presentation does
+not approve general scenarios, obstacles as a safety claim, an external
+simulator, a third-party planner, or a software/physical DUT.
+
 The current implementation does not yet satisfy the reusable capability,
 broker-nonce, and host-egress proofs required by the following future release
 gate.
@@ -671,11 +683,12 @@ None may be silently chosen during coding.
 
 ## 20. Approval boundary
 
-The implemented approval boundary ends at the Tier 1 reconnect demo described
-in [DEMO.md](DEMO.md). Within it, `vda5050-demo` may use the declared virtual
-actors, up to 100 virtual mobile robots, and MQTT messages against a disposable
-loopback broker or the supplied Compose runner's validated internal `broker`
-service.
+The implemented approval boundary ends at the Tier 1 reconnect demonstrations
+described in [DEMO.md](DEMO.md) and [LIVE_DEMO.md](LIVE_DEMO.md). Within it, the
+demo executables may use the declared virtual actors, up to 100 scripted scale
+actors or exactly two live kinematic actors, and MQTT messages against a
+disposable loopback broker or the supplied Compose runner's validated internal
+`broker` service.
 
 It authorizes no external broker, external system, customer environment,
 software DUT, physical operation, generic fault injection, or Tier 2/3

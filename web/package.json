@@ -1,0 +1,22 @@
+{
+  "name": "vda5050-live-cockpit",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tailwindcss -i ./src/styles.css -o ./dist/styles.css --minify && cp ./src/index.html ./dist/index.html",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@tailwindcss/cli": "4.3.3",
+    "@types/node": "26.1.2",
+    "@vitest/coverage-v8": "4.1.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

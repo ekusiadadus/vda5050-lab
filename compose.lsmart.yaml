@@ -1,0 +1,180 @@
+name: vda5050-lsmart
+
+x-lab-process: &lab-process
+  image: vda5050-lab/live-demo:local
+  build:
+    context: .
+    dockerfile: demo/Dockerfile
+  restart: "no"
+  read_only: true
+  user: ${VDA5050_LSMART_UID:-65532}:${VDA5050_LSMART_GID:-65532}
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 64
+  mem_limit: 256m
+  cpus: 1.00
+  tmpfs:
+    - /tmp:size=16m,mode=1777,noexec,nosuid,nodev
+
+x-artifact-write: &artifact-write
+  type: bind
+  source: ${VDA5050_LSMART_ARTIFACT_DIR:?VDA5050_LSMART_ARTIFACT_DIR must be set}
+  target: /artifacts
+
+x-artifact-read: &artifact-read
+  type: bind
+  source: ${VDA5050_LSMART_ARTIFACT_DIR:?VDA5050_LSMART_ARTIFACT_DIR must be set}
+  target: /artifacts
+  read_only: true
+
+x-bridge-write: &bridge-write
+  type: bind
+  source: ${VDA5050_LSMART_BRIDGE_DIR:?VDA5050_LSMART_BRIDGE_DIR must be set}
+  target: /bridge
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    restart: "no"
+    read_only: true
+    user: "1883:1883"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    mem_limit: 64m
+    cpus: 0.50
+    tmpfs:
+      - /tmp:size=1m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - type: bind
+        source: ./demo/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+        read_only: true
+    networks:
+      - tier1
+
+  lsmart_plan:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-lsmart-plan"]
+    command:
+      - --output-dir
+      - /artifacts
+      - --run-id
+      - ${VDA5050_LSMART_RUN_ID:?VDA5050_LSMART_RUN_ID must be set}
+      - --inject-reconnect-fault
+      - ${VDA5050_LSMART_INJECT_FAULT:-true}
+    volumes:
+      - *artifact-write
+    network_mode: none
+
+  recorder:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-lsmart-recorder"]
+    volumes:
+      - *artifact-write
+    networks:
+      - tier1
+
+  vda5050-lsmart-bridge:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-lsmart-bridge"]
+    volumes:
+      - *artifact-write
+      - *bridge-write
+    networks:
+      - tier1
+
+  official_lsmart:
+    image: vda5050-lab/official-lsmart:local
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: demo/lsmart/Dockerfile
+      additional_contexts:
+        lsmart_source: ${VDA5050_LSMART_SOURCE:?VDA5050_LSMART_SOURCE must be set}
+        argos_source: https://github.com/ilpincy/argos3.git#3ef43eb857810a2a461a51f2574a9913cf56702f
+    restart: "no"
+    read_only: true
+    user: ${VDA5050_LSMART_UID:-65532}:${VDA5050_LSMART_GID:-65532}
+    environment:
+      VDA5050_LSMART_RUN_ID: ${VDA5050_LSMART_RUN_ID:?VDA5050_LSMART_RUN_ID must be set}
+      VDA5050_LSMART_BRIDGE_DIR: /bridge
+      VDA5050_LSMART_ARTIFACT_DIR: /artifacts
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 3g
+    cpus: 4.00
+    tmpfs:
+      - /tmp:size=256m,mode=1777,nosuid,nodev
+      - /runtime:size=64m,mode=1777,nosuid,nodev
+    volumes:
+      - *artifact-write
+      - *bridge-write
+    network_mode: none
+
+  doctor_passive:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-doctor"]
+    command:
+      - diagnose
+      - /artifacts/trace.canonical.jsonl
+      - --vda-version
+      - 3.0.0
+      - --input-format
+      - canonical-jsonl
+      - --format
+      - json
+    volumes:
+      - *artifact-read
+    network_mode: none
+
+  doctor_evidence:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-doctor"]
+    command:
+      - diagnose
+      - /artifacts/trace.canonical.jsonl
+      - --vda-version
+      - 3.0.0
+      - --input-format
+      - canonical-jsonl
+      - --format
+      - json
+      - --synthetic-evidence-manifest
+      - /artifacts/synthetic-evidence.json
+    volumes:
+      - *artifact-read
+    network_mode: none
+
+  web_gateway:
+    <<: *lab-process
+    entrypoint: ["/usr/local/bin/vda5050-web-gateway"]
+    command: ["--artifact-dir", "/artifacts", "--static-dir", "/web"]
+    volumes:
+      - *artifact-read
+    ports:
+      - target: 8080
+        published: ${VDA5050_LSMART_WEB_PORT:-8080}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - cockpit
+    profiles:
+      - cockpit
+
+networks:
+  tier1:
+    driver: bridge
+    internal: true
+    attachable: false
+  cockpit:
+    driver: bridge
+    attachable: false

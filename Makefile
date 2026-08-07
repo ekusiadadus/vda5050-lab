@@ -1,4 +1,4 @@
-.PHONY: audit check ci coverage demo-e2e demo-fleet demo-fleet-e2e demo-video deny diagnose-example fmt fmt-check lint release-check release-lint sbom-check test
+.PHONY: audit check ci coverage demo-e2e demo-fleet demo-fleet-e2e demo-video deny diagnose-example fmt fmt-check lint live-browser-e2e live-contract live-demo live-e2e live-video lsmart-contract lsmart-demo release-check release-lint sbom-check test web-test
 
 RELEASE_SBOM ?= /tmp/vda5050-doctor.cdx.json
 DEMO_MEDIA_DIR ?= dist
@@ -32,6 +32,30 @@ demo-video:
 	test -n "$(RELEASE_TAG)"
 	RELEASE_TAG="$(RELEASE_TAG)" DEMO_MEDIA_DIR="$(DEMO_MEDIA_DIR)" bash scripts/render-demo-video.sh
 
+live-demo:
+	bash scripts/run-live-demo.sh
+
+live-contract:
+	bash tests/tier1_live_contract.sh
+
+live-e2e:
+	bash tests/tier1_live_e2e.sh
+
+live-browser-e2e:
+	VDA5050_LIVE_BROWSER_TEST=1 bash tests/tier1_live_e2e.sh
+
+live-video:
+	bash scripts/render-live-video.sh
+
+lsmart-contract:
+	bash tests/lsmart_integration_contract.sh
+
+lsmart-demo:
+	bash scripts/run-lsmart-demo.sh
+
+web-test:
+	docker build --file demo/Dockerfile --target web-builder .
+
 fmt:
 	cargo fmt --all
 
@@ -48,9 +72,9 @@ test:
 
 release-lint:
 	actionlint .github/workflows/*.yml
-	shellcheck scripts/verify-release-tag.sh scripts/normalize-cyclonedx.sh scripts/verify-release-assets.sh scripts/render-demo-video.sh scripts/render-fleet-media.sh scripts/run-tier1-demo.sh scripts/run-tier1-fleet-suite.sh tests/release_contract.sh tests/fleet_media_contract.sh tests/fleet_release_contract.sh tests/tier1_demo_e2e.sh tests/tier1_demo_verdict_matrix.sh tests/tier1_multirobot_contract.sh tests/tier1_multirobot_e2e.sh
+	shellcheck scripts/verify-release-tag.sh scripts/normalize-cyclonedx.sh scripts/verify-release-assets.sh scripts/render-demo-video.sh scripts/render-fleet-media.sh scripts/render-live-video.sh scripts/run-tier1-demo.sh scripts/run-tier1-fleet-suite.sh scripts/run-live-demo.sh scripts/run-lsmart-demo.sh demo/lsmart/run-official-lsmart.sh tests/release_contract.sh tests/fleet_media_contract.sh tests/fleet_release_contract.sh tests/lsmart_integration_contract.sh tests/tier1_demo_e2e.sh tests/tier1_demo_verdict_matrix.sh tests/tier1_live_contract.sh tests/tier1_live_e2e.sh tests/tier1_multirobot_contract.sh tests/tier1_multirobot_e2e.sh
 
-ci: fmt-check lint test audit deny
+ci: fmt-check lint test lsmart-contract audit deny
 
 diagnose-example:
 	cargo run --locked --bin vda5050-doctor -- diagnose fixtures/synthetic/repeated-order-changed.jsonl --vda-version 3.0.0 --input-format envelope-jsonl --format terminal

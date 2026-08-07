@@ -27,7 +27,8 @@ use vda5050_import::{ImportConfig, ImportFormat, import_path};
 use super::{
     BrokerTarget, DURATION_BUDGET_SECONDS, FleetLayout, FleetLayoutError, PROTOCOL_VERSION,
     Position, QosContract, RobotPlan, WireMessage, connection_message_for, message_budget,
-    released_base_order_for, render_ascii_frame, state_message_for, visualization_message_for,
+    released_base_order_for, render_ascii_frame, sample_wire_positions, simulate_robot_route,
+    state_message_for, visualization_message_for,
 };
 
 #[derive(Debug, Clone)]
@@ -450,26 +451,38 @@ pub fn run_live(options: &RunOptions) -> Result<RunArtifacts, RunError> {
                 "session-1",
             ))?;
     }
-    for step in 1_i32..=4 {
-        for runtime in &agvs {
-            let position = Position {
-                x: runtime.robot.start.x + step,
-                y: runtime.robot.start.y,
-            };
+    let simulated_positions = agvs
+        .iter()
+        .map(|runtime| {
+            simulate_robot_route(runtime.robot.start, runtime.robot.released_end)
+                .and_then(|snapshots| sample_wire_positions(&snapshots))
+                .map_err(|_| RunError::Scenario("deterministic robot simulation"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    for sample_index in 0..4 {
+        for (runtime, positions) in agvs.iter().zip(&simulated_positions) {
+            let position = positions[sample_index];
             runtime
                 .client
                 .as_ref()
                 .ok_or(RunError::Scenario("AGV session"))?
                 .publish(&visualization_message_for(
                     &runtime.robot,
-                    u64::try_from(step).unwrap_or(u64::MAX),
+                    u64::try_from(sample_index + 1).unwrap_or(u64::MAX),
                     1,
                     position,
                     "session-1",
                 ))?;
         }
         if options.animate {
-            print!("\x1b[2J\x1b[H{}", render_fleet_frame(&layout, step, false));
+            print!(
+                "\x1b[2J\x1b[H{}",
+                render_fleet_frame(
+                    &layout,
+                    i32::try_from(sample_index + 1).unwrap_or(i32::MAX),
+                    false
+                )
+            );
         }
         thread::sleep(Duration::from_millis(150));
     }

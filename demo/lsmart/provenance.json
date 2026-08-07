@@ -1,0 +1,21 @@
+{
+  "schema": "vda5050-lab.lsmart-provenance/1",
+  "source_name": "Lifelong Scalable Multi-Agent Realistic Testbed",
+  "source_url": "https://github.com/smart-mapf/lifelong-smart.git",
+  "source_commit": "ce0a020d8da10a806b23ffa3ccb56b1affff57d1",
+  "source_license_status": "NO_ROOT_LICENSE_FILE_OBSERVED",
+  "redistribute_source": false,
+  "redistribute_image": false,
+  "integration_mode": "external-source-plus-local-overlay",
+  "overlays": [
+    "patches/0001-vda5050-causal-bridge.patch",
+    "patches/0002-ubuntu22-spdlog-ostream-compat.patch"
+  ],
+  "argos": {
+    "source_url": "https://github.com/ilpincy/argos3.git",
+    "source_tag": "3.0.0-beta59",
+    "source_commit": "3ef43eb857810a2a461a51f2574a9913cf56702f",
+    "license": "MIT"
+  },
+  "observed_at": "2026-08-07"
+}

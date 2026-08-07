@@ -707,10 +707,13 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror",
  "vda5050-core",
  "vda5050-doctor",
  "vda5050-import",
+ "vda5050-local-fs",
+ "vda5050-sim-core",
 ]
 
 [[package]]
@@ -788,6 +791,14 @@ dependencies = [
  "sha2",
  "thiserror",
  "vda5050-core",
+]
+
+[[package]]
+name = "vda5050-sim-core"
+version = "0.2.0"
+dependencies = [
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

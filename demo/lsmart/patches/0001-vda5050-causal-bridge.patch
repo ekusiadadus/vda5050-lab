@@ -1,0 +1,396 @@
+diff --git a/server/src/ADG.cpp b/server/src/ADG.cpp
+index 0f9b7c8..9cdbb49 100644
+--- a/server/src/ADG.cpp
++++ b/server/src/ADG.cpp
+@@ -577,15 +577,9 @@ SIM_PLAN ADG::getPlan(int agent_id) {
+         // static_cast<double>(intStart.second)}; pair<double, double>
+         // doubleEnd = {static_cast<double>(intEnd.first),
+         // static_cast<double>(intEnd.second)};
+-        int task_id;
+-        if (action.task_ptr == nullptr) {
+-            task_id = -1;
+-        } else {
+-            task_id = action.task_ptr->id;
+-        }
+         sim_plan.emplace_back(robotIDToStartIndex[action.robot_id], enque_id,
+                               action.orientation, string(1, action.type),
+-                              action.start, action.goal, task_id);
++                              action.start, action.goal, action.task_id);
+         enqueue_nodes_idx[agent_id].push_back(enque_id);
+     }
+     // cout << "For agent " << agent_id << ", enqueue size is: " <<
+diff --git a/client/controllers/footbot_diffusion/footbot_diffusion.cpp b/client/controllers/footbot_diffusion/footbot_diffusion.cpp
+index 31c6a67..10ce8d9 100644
+--- a/client/controllers/footbot_diffusion/footbot_diffusion.cpp
++++ b/client/controllers/footbot_diffusion/footbot_diffusion.cpp
+@@ -5,6 +5,10 @@
+ /* 2D vector definition */
+ #include <argos3/core/utility/math/vector3.h>
+ 
++#include <cstdlib>
++#include <iomanip>
++#include <sstream>
++
+ /****************************************/
+ /****************************************/
+ 
+@@ -73,6 +77,218 @@ void CFootBotDiffusion::insertActions(const SIM_PLAN &actions) {
+     // q.back_insert(q.begin(), tmp_cache.begin(), tmp_cache.end());
+ }
+ 
++namespace {
++
++void atomicWriteJson(const std::filesystem::path &target,
++                     const json &payload) {
++    const auto temporary = target.string() + ".tmp";
++    {
++        std::ofstream output(temporary, std::ios::out | std::ios::trunc);
++        if (!output.is_open()) {
++            throw std::runtime_error("cannot open VDA bridge temporary file");
++        }
++        output << payload.dump() << std::endl;
++        output.flush();
++        if (!output.good()) {
++            throw std::runtime_error("cannot write VDA bridge temporary file");
++        }
++    }
++    std::filesystem::rename(temporary, target);
++}
++
++string vdaKind(const string &action) {
++    if (action == "M") {
++        return "MOVE";
++    }
++    if (action == "T") {
++        return "TURN";
++    }
++    if (action == "S") {
++        return "STATION";
++    }
++    throw std::runtime_error("unknown LSMART action for VDA bridge");
++}
++
++double orientationDegrees(int orientation) {
++    if (orientation == 0) {
++        return 0.0;
++    }
++    if (orientation == 1) {
++        return 270.0;
++    }
++    if (orientation == 2) {
++        return 180.0;
++    }
++    if (orientation == 3) {
++        return 90.0;
++    }
++    throw std::runtime_error("invalid LSMART orientation for VDA bridge");
++}
++
++}  // namespace
++
++void CFootBotDiffusion::queueVdaActionBatch(const SIM_PLAN &actions) {
++    if (actions.empty() || !vda_pending_batch_id.empty()) {
++        return;
++    }
++    ++vda_batch_counter;
++    std::ostringstream id;
++    id << robot_id << "-" << std::setw(6) << std::setfill('0')
++       << vda_batch_counter;
++    vda_pending_batch_id = id.str();
++    vda_pending_actions = json::array();
++    for (const auto &action : actions) {
++        const auto start = get<4>(action);
++        const auto end = get<5>(action);
++        const int orientation = static_cast<int>(get<2>(action));
++        if (orientation < 0 || orientation > 3) {
++            throw std::runtime_error("invalid LSMART orientation");
++        }
++        vda_pending_actions.push_back(
++            {{"node_id", get<1>(action)},
++             {"kind", vdaKind(get<3>(action))},
++             {"start",
++              {ChangeCoordinateFromMapToArgos(get<1>(start)),
++               ChangeCoordinateFromMapToArgos(get<0>(start))}},
++             {"end",
++              {ChangeCoordinateFromMapToArgos(get<1>(end)),
++               ChangeCoordinateFromMapToArgos(get<0>(end))}},
++             {"orientation", orientation},
++             {"task_id", get<6>(action)}});
++    }
++    const json envelope = {
++        {"schema", "vda5050-lab.lsmart-action-batch/1"},
++        {"run_id", vda_bridge_run_id},
++        {"batch_id", vda_pending_batch_id},
++        {"robot_id", robot_id},
++        {"simulation_tick", step_count_},
++        {"actions", vda_pending_actions},
++    };
++    atomicWriteJson(std::filesystem::path(vda_bridge_dir) / "outbox" /
++                        (vda_pending_batch_id + ".json"),
++                    envelope);
++}
++
++void CFootBotDiffusion::acceptVdaDelivery() {
++    if (vda_pending_batch_id.empty()) {
++        return;
++    }
++    const auto path = std::filesystem::path(vda_bridge_dir) / "inbox" /
++                      (vda_pending_batch_id + ".json");
++    if (!std::filesystem::is_regular_file(path)) {
++        return;
++    }
++    std::ifstream input(path);
++    json delivery;
++    input >> delivery;
++    if (delivery.value("schema", "") !=
++            "vda5050-lab.lsmart-delivery/1" ||
++        delivery.value("status", "") != "mqtt-delivered" ||
++        delivery.value("run_id", "") != vda_bridge_run_id ||
++        delivery.value("batch_id", "") != vda_pending_batch_id ||
++        delivery.value("robot_id", "") != robot_id ||
++        !delivery.contains("actions") ||
++        delivery["actions"] != vda_pending_actions) {
++        throw std::runtime_error("VDA bridge delivery does not match batch");
++    }
++    insertVdaActions(delivery["actions"]);
++    vda_current_order_id = delivery.value("order_id", "");
++    vda_pending_batch_id.clear();
++    vda_pending_actions = json::array();
++}
++
++void CFootBotDiffusion::insertVdaActions(const json &actions) {
++    for (const auto &action : actions) {
++        const auto end = action.at("end");
++        const double x = end.at(0).get<double>();
++        const double y = end.at(1).get<double>();
++        const int orientation = action.at("orientation").get<int>();
++        const int node_id = action.at("node_id").get<int>();
++        const int task_id = action.at("task_id").get<int>();
++        const string kind = action.at("kind").get<string>();
++        const double angle = orientationDegrees(orientation);
++        if (kind == "MOVE") {
++            deque<int> previous_ids;
++            if (!q.empty() && q.back().type == Action::MOVE) {
++                previous_ids = q.back().nodeIDS;
++                q.pop_back();
++            }
++            previous_ids.push_back(node_id);
++            q.emplace_back(x, y, angle, previous_ids, Action::MOVE);
++        } else if (kind == "TURN") {
++            q.emplace_back(x, y, angle, deque<int>{node_id}, Action::TURN);
++        } else if (kind == "STATION") {
++            q.emplace_back(x, y, angle, deque<int>{node_id}, Action::STATION,
++                           DELIVER_T, task_id);
++        } else {
++            throw std::runtime_error("invalid action in VDA delivery");
++        }
++    }
++}
++
++void CFootBotDiffusion::pollVdaBridge() {
++    if (vda_bridge_dir.empty()) {
++        if (count % 10 == 0) {
++            const auto actions =
++                client->call("obtain_actions", robot_id).as<SIM_PLAN>();
++            if (!actions.empty()) {
++                insertActions(actions);
++            }
++        }
++        return;
++    }
++    acceptVdaDelivery();
++    if (count % 10 == 0 && vda_pending_batch_id.empty()) {
++        const auto actions =
++            client->call("obtain_actions", robot_id).as<SIM_PLAN>();
++        if (!actions.empty()) {
++            queueVdaActionBatch(actions);
++        }
++    }
++}
++
++string CFootBotDiffusion::reportFinishedNode(int node_id) {
++    vda_last_finished_node_id = node_id;
++    return client->call("receive_update", robot_id, node_id).as<string>();
++}
++
++void CFootBotDiffusion::writeVdaTelemetry(const CVector3 &position, Real angle,
++                                          const Action &action,
++                                          Real left_velocity,
++                                          Real right_velocity) {
++    if (vda_bridge_dir.empty()) {
++        return;
++    }
++    string motion_state = "WAITING";
++    if (action.type == Action::MOVE) {
++        motion_state = "DRIVING";
++    } else if (action.type == Action::TURN) {
++        motion_state = "TURNING";
++    } else if (action.type == Action::STATION) {
++        motion_state = "STATION";
++    }
++    const json telemetry = {
++        {"schema", "vda5050-lab.lsmart-pose/1"},
++        {"robot_id", robot_id},
++        {"simulation_tick", step_count_},
++        {"x", position.GetX()},
++        {"y", position.GetY()},
++        {"theta", angle * M_PI / 180.0},
++        {"linear_velocity", (left_velocity + right_velocity) / 2.0},
++        {"angular_velocity", (right_velocity - left_velocity) / 0.14},
++        {"motion_state", motion_state},
++        {"last_node_id",
++         vda_last_finished_node_id < 0 ? json(nullptr)
++                                       : json(vda_last_finished_node_id)},
++        {"order_id",
++         vda_current_order_id.empty() ? json(nullptr)
++                                      : json(vda_current_order_id)},
++    };
++    atomicWriteJson(std::filesystem::path(vda_bridge_dir) / "telemetry" /
++                        (robot_id + ".json"),
++                    telemetry);
++}
++
+ void CFootBotDiffusion::Init(TConfigurationNode &t_node) {
+     /*
+      * Get sensor/actuator handles
+@@ -123,6 +339,23 @@ void CFootBotDiffusion::Init(TConfigurationNode &t_node) {
+     GetNodeAttributeOrDefault(t_node, "outputDir", m_outputDir,
+                               string("metaData/"));
+     GetNodeAttributeOrDefault(t_node, "screen", screen, 0);
++    if (const char *bridge_dir = std::getenv("VDA5050_LSMART_BRIDGE_DIR")) {
++        vda_bridge_dir = bridge_dir;
++    }
++    if (!vda_bridge_dir.empty()) {
++        const char *run_id = std::getenv("VDA5050_LSMART_RUN_ID");
++        if (run_id == nullptr || string(run_id).empty()) {
++            throw std::runtime_error(
++                "VDA5050_LSMART_RUN_ID is required when bridge is enabled");
++        }
++        vda_bridge_run_id = run_id;
++        std::filesystem::create_directories(
++            std::filesystem::path(vda_bridge_dir) / "outbox");
++        std::filesystem::create_directories(
++            std::filesystem::path(vda_bridge_dir) / "inbox");
++        std::filesystem::create_directories(
++            std::filesystem::path(vda_bridge_dir) / "telemetry");
++    }
+     m_linearVelocity = 1.22 * m_angularVelocity;
+     m_currVelocity = 0.0;
+     this->init_pos = m_pcPosSens->GetReading().Position;
+@@ -223,13 +456,7 @@ void CFootBotDiffusion::ControlStep() {
+     }
+     Real left_v, right_v;
+     CVector3 currPos = m_pcPosSens->GetReading().Position;
+-    if (count % 10 == 0) {
+-        auto updateActions =
+-            client->call("obtain_actions", robot_id).as<SIM_PLAN>();
+-        if (not updateActions.empty()) {
+-            insertActions(updateActions);
+-        }
+-    }
++    pollVdaBridge();
+     auto end_update = std::chrono::high_resolution_clock::now();
+     std::chrono::duration<double, milli> update_duration_ms =
+         end_update - start;
+@@ -258,9 +485,7 @@ void CFootBotDiffusion::ControlStep() {
+             a.type = Action::STOP;
+             q.pop_front();
+             for (auto tmp_nodeId : a.nodeIDS) {
+-                receive_msg =
+-                    client->call("receive_update", robot_id, tmp_nodeId)
+-                        .as<string>();
++                receive_msg = reportFinishedNode(tmp_nodeId);
+             }
+             continue;
+         } else if (a.type == Action::MOVE &&
+@@ -277,9 +502,7 @@ void CFootBotDiffusion::ControlStep() {
+                      << "). Previous speed is: " << prevVelocity_ << endl;
+             }
+             if (a.nodeIDS.size() > 1) {
+-                receive_msg =
+-                    client->call("receive_update", robot_id, a.nodeIDS.front())
+-                        .as<string>();
++                receive_msg = reportFinishedNode(a.nodeIDS.front());
+                 q.front().nodeIDS.pop_front();
+             }
+             if ((currPos - targetPos).Length() < EPS) {
+@@ -287,9 +510,7 @@ void CFootBotDiffusion::ControlStep() {
+                     a.type = Action::STOP;
+                     q.pop_front();
+                     for (auto tmp_nodeId : a.nodeIDS) {
+-                        receive_msg =
+-                            client->call("receive_update", robot_id, tmp_nodeId)
+-                                .as<string>();
++                        receive_msg = reportFinishedNode(tmp_nodeId);
+                     }
+                     continue;
+                 }
+@@ -297,16 +518,12 @@ void CFootBotDiffusion::ControlStep() {
+         } else if (a.type == Action::TURN &&
+                    angleDifference(currAngle, a.angle) < 0.5f) {
+             a.type = Action::STOP;
+-            receive_msg =
+-                client->call("receive_update", robot_id, a.nodeIDS.front())
+-                    .as<string>();
++            receive_msg = reportFinishedNode(a.nodeIDS.front());
+             q.pop_front();
+             continue;
+         } else if (a.type == Action::STATION and a.timer <= 0) {
+             a.type = Action::STOP;
+-            receive_msg =
+-                client->call("receive_update", robot_id, a.nodeIDS.front())
+-                    .as<string>();
++            receive_msg = reportFinishedNode(a.nodeIDS.front());
+             q.pop_front();
+             curr_station = CVector3{-1, -1, -100};
+             continue;
+@@ -330,6 +547,8 @@ void CFootBotDiffusion::ControlStep() {
+         right_v = turn_velocities.second;
+     } else if (a.type == Action::STATION) {
+         m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
++        left_v = 0.0f;
++        right_v = 0.0f;
+         curr_station = CVector3{a.x, a.y, 0.0f};
+         q.front().timer--;
+     } else {
+@@ -338,6 +557,7 @@ void CFootBotDiffusion::ControlStep() {
+         left_v = 0.0f;
+         right_v = 0.0f;
+     }
++    writeVdaTelemetry(currPos, currAngle, a, left_v, right_v);
+ 
+     auto end = std::chrono::high_resolution_clock::now();
+     std::chrono::duration<double, milli> exec_duration_ms = end - end_find_act;
+diff --git a/client/controllers/footbot_diffusion/footbot_diffusion.h b/client/controllers/footbot_diffusion/footbot_diffusion.h
+index 92c0773..32bb58e 100644
+--- a/client/controllers/footbot_diffusion/footbot_diffusion.h
++++ b/client/controllers/footbot_diffusion/footbot_diffusion.h
+@@ -172,6 +172,14 @@ private:
+     static Real ChangeCoordinateFromMapToArgos(Real x);
+     static Real ChangeCoordinateFromArgosToMap(Real x);
+     void insertActions(const SIM_PLAN &actions);
++    void pollVdaBridge();
++    void queueVdaActionBatch(const SIM_PLAN &actions);
++    void acceptVdaDelivery();
++    void insertVdaActions(const json &actions);
++    void writeVdaTelemetry(const CVector3 &position, Real angle,
++                           const Action &action, Real left_velocity,
++                           Real right_velocity);
++    string reportFinishedNode(int node_id);
+     double getReferenceSpeed(double dist) const;
+     void updateQueue();
+ 
+@@ -197,6 +205,13 @@ private:
+     Real m_fWheelVelocity;
+     CRange<CRadians> m_cGoStraightAngleRange;
+     string m_outputDir;
++    string vda_bridge_dir;
++    string vda_bridge_run_id;
++    string vda_pending_batch_id;
++    string vda_current_order_id;
++    json vda_pending_actions = json::array();
++    unsigned long long vda_batch_counter = 0;
++    int vda_last_finished_node_id = -1;
+ 
+     deque<Action> q;  // Action queue of the robot
+     queue<Real> velocityQueue;

@@ -31,12 +31,23 @@ make diagnose-example
 Or run the complete isolated MQTT incident with Docker Compose and `jq`:
 
 ```sh
-bash scripts/run-tier1-demo.sh
+make live-demo
 ```
 
-The demo owns a disposable internal broker and virtual actors. Doctor runs
-with networking disabled and analyzes only the generated local trace. See
-[the demo guide](docs/DEMO.md) for the fault/passive/control comparison.
+The interactive demo runs two continuously moving software robots, a separate
+Fleet Control actor and recorder, then opens a read-only localhost cockpit with
+the passive/evidence Doctor comparison. It owns a disposable internal broker;
+Doctor runs with networking disabled and analyzes only the generated local
+trace. See [the live demo guide](docs/LIVE_DEMO.md).
+
+For the heavier warehouse demonstration driven by the official LSMART
+RHCR planner and ARGoS physics simulator, see
+[the official LSMART integration guide](docs/LSMART_DEMO.md). That optional
+demo uses an external pinned checkout and builds a local-only amd64 image:
+
+```sh
+make lsmart-demo
+```
 
 ## Status
 
@@ -216,7 +227,65 @@ make release-check
 Synthetic examples and expected proof boundaries are documented in
 [fixtures/synthetic/README.md](fixtures/synthetic/README.md).
 
-## Isolated Tier 1 multi-robot demo
+## Live two-robot simulator and diagnostic cockpit
+
+The recommended local demo is an end-to-end, deterministic VDA 5050 3.0.0
+incident:
+
+```sh
+make live-demo
+```
+
+Two independent robot clients follow six-meter released edges at a fixed
+20-Hz simulation step. At 2.5 meters, `demo-001` loses its MQTT connection,
+reconnects in a second synthetic epoch, and intentionally omits retained
+`ONLINE`. A separate recorder captures the actual broker exchange. Only after
+the trace is sealed does the network-disabled Doctor run twice against the same
+bytes: first passively, then with the matching same-job synthetic manifest.
+
+The localhost cockpit shows robot motion, scenario phases, broker-egress
+messages, replay controls, and the expected contrast:
+
+| Input | D4 result |
+| --- | --- |
+| Passive trace | `INCONCLUSIVE / UNRESOLVED` |
+| Same trace plus matching synthetic evidence | `FAIL / MOBILE_ROBOT` |
+
+Simulator coordinates and UI phases are labeled `evidence: false`; they are
+explanatory projections and never affect diagnosis. The Web gateway is not an
+MQTT client, has no write endpoint or Docker socket, reads only fixed size-capped
+artifacts, and is bound to `127.0.0.1`.
+
+See [the live guide](docs/LIVE_DEMO.md) and
+[ADR 0005](docs/adr/0005-deterministic-live-simulator-cockpit.md). This is a
+kinematic software demonstration, not a physics, safety, third-party
+interoperability, or physical-robot result.
+
+## Official LSMART warehouse demo
+
+The optional `make lsmart-demo` path replaces the two scripted lanes with the
+official [LSMART](https://smart-mapf.github.io/lifelong-smart/) stack: RHCR/PBS
+planning, windowed lifelong task assignment, ADG execution, PID robot
+controllers, and ARGoS simulation on the 33×36 `kiva_large_w_mode` map. Ten
+robots move through shelves, endpoints, and workstations in the localhost
+cockpit.
+
+The integration is causal, not a post-hoc animation. Each action batch obtained
+from LSMART's ADG is held outside the controller queue, projected into a VDA
+5050 3.0.0 order, published by Fleet Control, received again by that robot's
+adapter through the isolated MQTT broker, semantically revalidated, and only
+then released to the official controller. Actual ARGoS poses become VDA state
+and visualization messages; the independent recorder supplies Doctor's offline
+input.
+
+The LSMART source is not vendored. Its pinned revision currently has no root
+license file, so the repository stores only a patch and provenance record and
+must not publish the derived source or container image. This run is synthetic
+same-job evidence; it is not VDA certification, third-party interoperability,
+planner performance, physical fidelity, or product validation. See
+[ADR 0006](docs/adr/0006-official-lsmart-causal-bridge.md).
+
+## Isolated Tier 1 multi-robot scale demo
 
 `vda5050-demo` is a separate, intentionally bounded executable for one
 synthetic reconnect scenario at 1 through 100 virtual mobile robots. The
@@ -341,12 +410,12 @@ and the runtime-compatible manifest are present in
 [docs/PROTOCOL_SOURCES.md](docs/PROTOCOL_SOURCES.md); runtime bundle integration
 remains a pre-alpha blocker.
 
-The separate `vda5050-demo` executable is the sole current exception to the
-active-work boundary: it implements one Tier 1, synthetic, virtual-actor
-scenario with at most 100 virtual mobile robots against loopback or an
-explicitly asserted isolated service named `broker`. Even at 100, it does not
-authorize an external broker, software DUT, customer environment, physical
-robot, generic fault bridge, or Tier 2/3 run. Its same-job evidence manifest
+The separate demo executables are the sole current exceptions to the
+active-work boundary. They implement the fixed Tier 1 reconnect scenario as
+either the published 1..=100 scale projection or the deterministic two-robot
+live cockpit, only against loopback or the supplied isolated `broker`. They do
+not authorize an external broker, software DUT, customer environment, physical
+robot, generic fault bridge, or Tier 2/3 run. Their same-job evidence manifests
 cannot be used as production evidence. The retained safety design and remaining
 approval boundary live in
 [docs/FUTURE_ACTIVE_TESTING.md](docs/FUTURE_ACTIVE_TESTING.md).

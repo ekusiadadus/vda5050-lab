@@ -49,13 +49,20 @@ jobs:
             scripts/verify-release-assets.sh \
             scripts/render-demo-video.sh \
             scripts/render-fleet-media.sh \
+            scripts/render-live-video.sh \
             scripts/run-tier1-demo.sh \
             scripts/run-tier1-fleet-suite.sh \
+            scripts/run-live-demo.sh \
+            scripts/run-lsmart-demo.sh \
+            demo/lsmart/run-official-lsmart.sh \
             tests/release_contract.sh \
             tests/fleet_media_contract.sh \
             tests/fleet_release_contract.sh \
+            tests/lsmart_integration_contract.sh \
             tests/tier1_demo_e2e.sh \
             tests/tier1_demo_verdict_matrix.sh \
+            tests/tier1_live_contract.sh \
+            tests/tier1_live_e2e.sh \
             tests/tier1_multirobot_contract.sh \
             tests/tier1_multirobot_e2e.sh
 
@@ -77,7 +84,9 @@ jobs:
         run: cargo test --workspace --all-targets --locked
 
       - name: Run isolated Tier 1 demo contracts
-        run: make demo-e2e
+        run: |
+          make demo-e2e
+          make lsmart-contract
 
       - name: Install pinned coverage tool
         run: cargo install cargo-llvm-cov --version 0.8.7 --locked
@@ -112,3 +121,9 @@ jobs:
         run: |
           make demo-e2e
           make demo-fleet-e2e
+
+      - name: Verify deterministic live cockpit scenario
+        run: |
+          make live-contract
+          make live-e2e
+          make live-browser-e2e

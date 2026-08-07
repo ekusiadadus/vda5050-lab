@@ -1,0 +1,11 @@
+diff --git a/server/inc/utils/common.h b/server/inc/utils/common.h
+index 256a71c..3df3391 100644
+--- a/server/inc/utils/common.h
++++ b/server/inc/utils/common.h
+@@ -25,5 +25,6 @@
+ #include <vector>
+ 
++#include "spdlog/fmt/ostr.h"
+ #include "spdlog/spdlog.h"
+ #include "utils/enums.h"
+ #include "utils/json.hpp"

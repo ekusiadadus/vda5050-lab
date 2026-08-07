@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>VDA 5050 Live Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-screen bg-ink text-cloud antialiased">
+    <main class="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-4 p-4 lg:p-6">
+      <header class="panel flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <div>
+          <p class="eyebrow">LOCAL PROTOCOL INCIDENT LAB</p>
+          <h1 class="mt-1 text-2xl font-semibold tracking-tight text-white">VDA 5050 Live Cockpit</h1>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wider">
+          <span class="badge badge-warn">SYNTHETIC</span>
+          <span class="badge">VDA 3.0.0</span>
+          <span class="badge">DOCTOR OFFLINE</span>
+          <span id="run-status" class="badge badge-muted">BOOTING</span>
+        </div>
+      </header>
+
+      <section class="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)]">
+        <div class="panel min-h-[520px] overflow-hidden">
+          <div class="panel-heading">
+            <div>
+              <p id="simulator-source" class="eyebrow">SIMULATOR TRUTH · NOT EVIDENCE</p>
+              <h2 id="simulator-title" class="section-title">Two robots, one reconnect incident</h2>
+            </div>
+            <div id="sim-time" class="metric">T+0.00s</div>
+          </div>
+          <div class="relative min-h-[390px] overflow-hidden border-y border-line bg-grid">
+            <svg id="warehouse" viewBox="0 0 820 390" role="img" aria-label="Robot simulator map" class="h-full min-h-[390px] max-h-[720px] w-full"></svg>
+            <div class="absolute bottom-4 left-4 rounded-md border border-line bg-ink/90 px-3 py-2 text-xs text-dim">
+              Coordinates: <span id="coordinate-label" class="font-mono text-cloud">warehouse-live · meters</span>
+            </div>
+          </div>
+          <div class="grid gap-4 px-5 py-4 md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <div class="mb-2 flex justify-between font-mono text-[11px] text-dim">
+                <span>RUN START</span><span id="cursor-label">LIVE EDGE</span>
+              </div>
+              <input id="timeline" aria-label="Simulation timeline" type="range" min="0" max="1" value="1" class="timeline" />
+            </div>
+            <button id="follow-live" type="button" class="button">FOLLOW LIVE</button>
+          </div>
+        </div>
+
+        <aside class="panel min-h-[520px]">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">BROKER-EGRESS PROJECTION</p>
+              <h2 class="section-title">Incident timeline</h2>
+            </div>
+            <div id="wire-count" class="metric">0 MSG</div>
+          </div>
+          <ol id="event-list" class="max-h-[590px] space-y-1 overflow-auto px-4 pb-4" aria-live="polite"></ol>
+        </aside>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">SAME TRACE · DIFFERENT EVIDENCE BOUNDARY</p>
+            <h2 class="section-title">Doctor diagnosis</h2>
+          </div>
+          <a href="/api/wire-events" class="button">OPEN WIRE LOG</a>
+        </div>
+        <div class="grid gap-px bg-line md:grid-cols-2">
+          <article class="diagnosis-card">
+            <div class="flex items-center justify-between gap-3">
+              <h3>Passive capture only</h3>
+              <span id="passive-verdict" class="verdict verdict-pending">PENDING</span>
+            </div>
+            <p id="passive-summary" class="diagnosis-summary">Waiting for sealed trace.</p>
+            <dl class="diagnosis-meta"><dt>Rule</dt><dd id="passive-rule">LAB-D4-RECONNECT-STATE</dd><dt>Investigate</dt><dd id="passive-target">—</dd></dl>
+          </article>
+          <article class="diagnosis-card">
+            <div class="flex items-center justify-between gap-3">
+              <h3>Trace + same-job evidence</h3>
+              <span id="evidence-verdict" class="verdict verdict-pending">PENDING</span>
+            </div>
+            <p id="evidence-summary" class="diagnosis-summary">Waiting for sealed trace.</p>
+            <dl class="diagnosis-meta"><dt>Rule</dt><dd id="evidence-rule">LAB-D4-RECONNECT-STATE</dd><dt>Investigate</dt><dd id="evidence-target">—</dd></dl>
+          </article>
+        </div>
+        <p class="border-t border-line px-5 py-3 text-xs text-dim">
+          Simulator coordinates and phases explain the demo. Only the canonical capture and its explicitly bound manifest are diagnostic evidence.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
