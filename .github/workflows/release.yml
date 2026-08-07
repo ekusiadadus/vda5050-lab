@@ -256,6 +256,7 @@ jobs:
             librsvg2-bin
           ffmpeg -version | head -n 1
           convert -version | head -n 1
+          identify -version | head -n 1
           rsvg-convert --version
 
       - name: Verify renderer fixtures and render isolated fleet media

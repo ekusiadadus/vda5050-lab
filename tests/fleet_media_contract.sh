@@ -11,11 +11,11 @@ grep -Fq 'Passive trace only: INCONCLUSIVE / UNRESOLVED' "$renderer"
 for command_name in jq ffmpeg ffprobe; do
   command -v "$command_name" >/dev/null 2>&1
 done
-if command -v magick >/dev/null 2>&1; then
-  image_command=(magick)
+if magick identify -version >/dev/null 2>&1; then
+  image_identify_command=(magick identify)
 else
-  command -v convert >/dev/null 2>&1
-  image_command=(convert)
+  command -v identify >/dev/null 2>&1
+  image_identify_command=(identify)
 fi
 
 test_root="$(mktemp -d "${TMPDIR:-/tmp}/vda5050-fleet-media.XXXXXX")"
@@ -115,7 +115,7 @@ for count in 1 100; do
   grep -Fq "fleet_size=${count}" <<<"$metadata"
   grep -Fq 'focused_agv=demo-001' <<<"$metadata"
   grep -Fq 'coordinates=trace_payload' <<<"$metadata"
-  dimensions="$("${image_command[@]}" identify -format '%wx%h' "${animation}[0]")"
+  dimensions="$("${image_identify_command[@]}" -format '%wx%h' "${animation}[0]")"
   test "$dimensions" = 960x540
 done
 

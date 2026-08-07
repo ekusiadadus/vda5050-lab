@@ -8,6 +8,7 @@ release_tag="v9.9.9"
 counts=(001 002 005 010 050 100)
 
 grep -Fq 'bash tests/fleet_media_contract.sh' "$release_workflow"
+grep -Fq 'identify -version' "$release_workflow"
 # shellcheck disable=SC2016
 grep -Fq 'bash scripts/verify-release-assets.sh media "$release_dir" "$RELEASE_TAG"' "$release_workflow"
 # shellcheck disable=SC2016
