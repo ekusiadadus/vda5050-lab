@@ -120,8 +120,8 @@
   },
   "project_rule_catalog": {
     "path": "rules/phase1.json",
-    "sha256": "ec9d4e32f15d45c3d19ba536772f012268b51b11ea51c2e7bfbc8fcc46a88f63",
-    "bytes": 12925
+    "sha256": "51eb56c9d760194bbcfddbf02ed934d47cf15b0ead1f2a7cb0a41735bba27af9",
+    "bytes": 12966
   },
   "runtime_bundle_manifest": "bundles/manifests/vda5050-3.0.0.phase1.bundle.json",
   "known_non_claims": [

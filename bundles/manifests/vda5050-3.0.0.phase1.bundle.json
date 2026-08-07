@@ -2,7 +2,7 @@
   "bundle_id": "vda5050-3.0.0-phase1@2026-08-06",
   "vda_version": "3.0.0",
   "evaluator_api_version": "vda5050-protocol.bundle/1",
-  "rule_implementation_digest": "ec9d4e32f15d45c3d19ba536772f012268b51b11ea51c2e7bfbc8fcc46a88f63",
+  "rule_implementation_digest": "51eb56c9d760194bbcfddbf02ed934d47cf15b0ead1f2a7cb0a41735bba27af9",
   "artifacts": {
     "VDA5050_EN.pdf": {
       "sha256": "becf70e4c4a97db4058464d333ef9f7492a32007577dda70fdc433de045dab20"
@@ -35,7 +35,7 @@
       "sha256": "d9a2d8a2f0d7300cc6d9158b1708b7f7d08fdefd5415b1991fbeebab08a9b402"
     },
     "rules/phase1.json": {
-      "sha256": "ec9d4e32f15d45c3d19ba536772f012268b51b11ea51c2e7bfbc8fcc46a88f63"
+      "sha256": "51eb56c9d760194bbcfddbf02ed934d47cf15b0ead1f2a7cb0a41735bba27af9"
     }
   },
   "errata": [],

@@ -53,7 +53,11 @@ jobs:
           test -f "docs/releases/$RELEASE_TAG.md"
           grep -Fq "## [$version]" CHANGELOG.md
           catalog_digest="$(sha256sum rules/phase1.json | cut -d ' ' -f 1)"
+          catalog_bytes="$(wc -c < rules/phase1.json | tr -d ' ')"
           test "$catalog_digest" = "$(jq -r '.rule_implementation_digest' bundles/manifests/vda5050-3.0.0.phase1.bundle.json)"
+          test "$catalog_digest" = "$(jq -r '.artifacts["rules/phase1.json"].sha256' bundles/manifests/vda5050-3.0.0.phase1.bundle.json)"
+          test "$catalog_digest" = "$(jq -r '.project_rule_catalog.sha256' bundles/manifests/vda5050-3.0.0.sources.json)"
+          test "$catalog_bytes" = "$(jq -r '.project_rule_catalog.bytes' bundles/manifests/vda5050-3.0.0.sources.json)"
 
       - name: Run formatting, lint, and tests
         run: make fmt-check lint test
